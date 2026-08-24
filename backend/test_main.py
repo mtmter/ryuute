@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from datetime import datetime
@@ -11,8 +12,8 @@ import database
 import main
 from routes_service import (
     RouteNotFoundError,
+    RouteProviderError,
     RoutesApiKeyError,
-    RoutesConnectionError,
 )
 
 
@@ -143,7 +144,9 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
             "2026-08-24T10:30",
             "2026-08-24T18:00",
             location_name="Garraway F",
-            destination="Garraway F",
+            destination="福岡県福岡市中央区今泉1丁目19番22号",
+            destination_lat=33.586,
+            destination_lng=130.398,
             arrival_buffer_minutes=10,
         )
 
@@ -152,42 +155,124 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
         self.database_path_patch.stop()
         self.temporary_directory.cleanup()
 
-    def test_route_search_uses_event_data_and_does_not_save(self):
-        route_with_google_only_fields = {
+    def test_route_search_uses_place_coordinates_and_does_not_save(self):
+        route_with_extra_fields = {
             **SAMPLE_ROUTE,
-            "raw_google_response": {"routes": ["生データ"]},
+            "provider_response": {"ResultSet": {}},
             "segments": [
-                {**segment, "google_only_field": "フロントへ返さない"}
+                {**segment, "provider_only_field": "フロントへ返さない"}
                 for segment in SAMPLE_ROUTE["segments"]
             ],
         }
 
         with patch(
             "main.search_route",
-            return_value=route_with_google_only_fields,
+            return_value=route_with_extra_fields,
         ) as search_route_mock:
             response = self.client.post(
                 f"/api/events/{self.event['id']}/route-search",
-                json={"origin": "  九州大学 伊都キャンパス  "},
+                json={
+                    "origin_name": "  九州大学 伊都キャンパス  ",
+                    "origin_address": "福岡県福岡市西区元岡744",
+                    "origin_place_id": "ChIJ-origin",
+                    "origin_lat": 33.596,
+                    "origin_lng": 130.215,
+                },
             )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), SAMPLE_ROUTE)
         search_route_mock.assert_called_once_with(
-            "九州大学 伊都キャンパス",
-            "Garraway F",
+            "33.596,130.215",
+            "33.586,130.398",
             datetime(2026, 8, 24, 10, 20),
+            origin_display_name="九州大学 伊都キャンパス",
+            destination_display_name="Garraway F",
         )
         self.assertIsNone(database.get_travel_plan(self.event["id"]))
+
+    def test_route_search_falls_back_to_addresses_and_names(self):
+        address_event = database.create_event(
+            "住所で検索する予定",
+            "2026-08-24T11:00",
+            "2026-08-24T12:00",
+            location_name="表示用の会場名",
+            destination="福岡市中央区の住所",
+        )
+        location_name_event = database.create_event(
+            "名称で検索する予定",
+            "2026-08-24T13:00",
+            "2026-08-24T14:00",
+            location_name="天神駅",
+        )
+
+        with patch("main.search_route", return_value=SAMPLE_ROUTE) as mock:
+            address_response = self.client.post(
+                f"/api/events/{address_event['id']}/route-search",
+                json={
+                    "origin_name": "九州大学",
+                    "origin_address": "福岡市西区の住所",
+                },
+            )
+            name_response = self.client.post(
+                f"/api/events/{location_name_event['id']}/route-search",
+                json={"origin_name": "博多駅"},
+            )
+
+        self.assertEqual(address_response.status_code, 200)
+        self.assertEqual(name_response.status_code, 200)
+        self.assertEqual(
+            mock.call_args_list[0].args[:2],
+            ("福岡市西区の住所", "福岡市中央区の住所"),
+        )
+        self.assertEqual(
+            mock.call_args_list[0].kwargs,
+            {
+                "origin_display_name": "九州大学",
+                "destination_display_name": "表示用の会場名",
+            },
+        )
+        self.assertEqual(
+            mock.call_args_list[1].args[:2],
+            ("博多駅", "天神駅"),
+        )
+
+    def test_route_search_works_with_mock_provider_without_google_api(self):
+        mock_event = database.create_event(
+            "ハッカソン",
+            "2026-08-25T10:22",
+            "2026-08-25T18:00",
+            location_name="Garraway F",
+            destination_lat=33.586,
+            destination_lng=130.398,
+            arrival_buffer_minutes=10,
+        )
+
+        with patch.dict(os.environ, {"ROUTE_PROVIDER": "mock"}, clear=True):
+            response = self.client.post(
+                f"/api/events/{mock_event['id']}/route-search",
+                json={
+                    "origin_name": "九州大学 伊都キャンパス",
+                    "origin_lat": 33.596,
+                    "origin_lng": 130.215,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        route = response.json()
+        self.assertEqual(route["origin"], "九州大学 伊都キャンパス")
+        self.assertEqual(route["destination"], "Garraway F")
+        self.assertEqual(route["arrival_at"], "2026-08-25T10:12")
+        self.assertIsNone(database.get_travel_plan(mock_event["id"]))
 
     def test_route_search_validates_event_origin_and_destination(self):
         missing_event_response = self.client.post(
             "/api/events/999/route-search",
-            json={"origin": "博多駅"},
+            json={"origin_name": "博多駅"},
         )
         empty_origin_response = self.client.post(
             f"/api/events/{self.event['id']}/route-search",
-            json={"origin": "   "},
+            json={},
         )
         event_without_destination = database.create_event(
             "通常の予定",
@@ -196,19 +281,24 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
         )
         missing_destination_response = self.client.post(
             f"/api/events/{event_without_destination['id']}/route-search",
-            json={"origin": "博多駅"},
+            json={"origin_name": "博多駅"},
+        )
+        invalid_request_response = self.client.post(
+            f"/api/events/{self.event['id']}/route-search",
+            json={"origin_lat": "緯度ではない値", "origin_lng": 130.4},
         )
 
         self.assertEqual(missing_event_response.status_code, 404)
         self.assertEqual(empty_origin_response.status_code, 400)
         self.assertEqual(missing_destination_response.status_code, 400)
+        self.assertEqual(invalid_request_response.status_code, 422)
 
     def test_route_search_converts_service_errors_to_http_errors(self):
         endpoint = f"/api/events/{self.event['id']}/route-search"
 
         error_cases = [
             (RouteNotFoundError("経路が見つかりませんでした"), 404),
-            (RoutesConnectionError("接続できませんでした"), 502),
+            (RouteProviderError("接続できませんでした"), 502),
             (RoutesApiKeyError("APIキーがありません"), 500),
         ]
         for service_error, expected_status in error_cases:
@@ -216,7 +306,7 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
                 with patch("main.search_route", side_effect=service_error):
                     response = self.client.post(
                         endpoint,
-                        json={"origin": "博多駅"},
+                        json={"origin_name": "博多駅"},
                     )
 
                 self.assertEqual(response.status_code, expected_status)

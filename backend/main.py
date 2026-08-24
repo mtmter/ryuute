@@ -115,7 +115,11 @@ class Preparation(BaseModel):
 
 
 class RouteSearchRequest(BaseModel):
-    origin: str
+    origin_name: str | None = None
+    origin_address: str | None = None
+    origin_place_id: str | None = None
+    origin_lat: float | None = None
+    origin_lng: float | None = None
 
 
 class RouteSegment(BaseModel):
@@ -162,6 +166,18 @@ def validate_event_times(start_at: str, end_at: str):
             status_code=400,
             detail="終了日時は開始日時以降にしてください",
         )
+
+
+def clean_optional_text(value):
+    if value is None:
+        return ""
+    return value.strip()
+
+
+def format_route_coordinates(latitude, longitude):
+    if latitude is None or longitude is None:
+        return ""
+    return f"{latitude},{longitude}"
 
 
 def travel_plan_to_response(travel_plan):
@@ -263,13 +279,36 @@ def search_event_route(event_id: int, request: RouteSearchRequest):
     if event is None:
         raise HTTPException(status_code=404, detail="予定が見つかりません")
 
-    origin = request.origin.strip()
+    origin_name = clean_optional_text(request.origin_name)
+    origin_address = clean_optional_text(request.origin_address)
+    origin_coordinates = format_route_coordinates(
+        request.origin_lat,
+        request.origin_lng,
+    )
+    origin = origin_coordinates or origin_address or origin_name
     if not origin:
-        raise HTTPException(status_code=400, detail="出発地を入力してください")
+        raise HTTPException(
+            status_code=400,
+            detail="出発地として利用できる情報を入力してください",
+        )
+    origin_display_name = origin_name or origin_address or origin
 
-    destination = (event["destination"] or "").strip()
+    destination_address = clean_optional_text(event["destination"])
+    destination_location_name = clean_optional_text(event["location_name"])
+    destination_coordinates = format_route_coordinates(
+        event["destination_lat"],
+        event["destination_lng"],
+    )
+    destination = (
+        destination_coordinates
+        or destination_address
+        or destination_location_name
+    )
     if not destination:
         raise HTTPException(status_code=400, detail="予定に目的地が設定されていません")
+    destination_display_name = (
+        destination_location_name or destination_address or destination
+    )
 
     try:
         event_start = datetime.strptime(event["start_at"], "%Y-%m-%dT%H:%M")
@@ -285,7 +324,13 @@ def search_event_route(event_id: int, request: RouteSearchRequest):
     )
 
     try:
-        return search_route(origin, destination, desired_arrival_at)
+        return search_route(
+            origin,
+            destination,
+            desired_arrival_at,
+            origin_display_name=origin_display_name,
+            destination_display_name=destination_display_name,
+        )
     except RouteNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except RoutesApiKeyError as error:

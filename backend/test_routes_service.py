@@ -54,12 +54,16 @@ SAMPLE_GOOGLE_RESPONSE = {
 class EkispertRoutesServiceTest(unittest.TestCase):
     def test_search_route_uses_mock_fixture_and_common_converter(self):
         result = routes_service.search_route(
-            "九州大学 伊都キャンパス",
-            "Garraway F",
+            "33.596,130.215",
+            "33.586,130.398",
             datetime(2026, 8, 25, 10, 12),
             provider_name="mock",
+            origin_display_name="九州大学 伊都キャンパス",
+            destination_display_name="Garraway F",
         )
 
+        self.assertEqual(result["origin"], "九州大学 伊都キャンパス")
+        self.assertEqual(result["destination"], "Garraway F")
         self.assertEqual(result["departure_at"], "2026-08-25T08:59")
         self.assertEqual(result["arrival_at"], "2026-08-25T10:12")
         self.assertEqual(result["duration_minutes"], 73)
