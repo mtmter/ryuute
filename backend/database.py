@@ -107,6 +107,19 @@ def initialize_database():
             """
         )
 
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS event_preparations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+            )
+            """
+        )
+
+
 def get_all_events():
     with connect_database() as connection:
         rows = connection.execute("""
@@ -368,6 +381,93 @@ def delete_travel_plan(event_id):
         cursor = connection.execute(
             "DELETE FROM travel_plans WHERE event_id = ?",
             (event_id,),
+        )
+
+    return cursor.rowcount > 0
+
+
+def get_all_preparations():
+    with connect_database() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, event_id, title, completed
+            FROM event_preparations
+            ORDER BY id
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def get_event_preparations(event_id):
+    with connect_database() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, event_id, title, completed
+            FROM event_preparations
+            WHERE event_id = ?
+            ORDER BY id
+            """,
+            (event_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def create_preparation(event_id, title):
+    with connect_database() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO event_preparations (event_id, title)
+            VALUES (?, ?)
+            """,
+            (event_id, title),
+        )
+        row = connection.execute(
+            """
+            SELECT id, event_id, title, completed
+            FROM event_preparations
+            WHERE id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+
+    return dict(row)
+
+
+def update_preparation(event_id, preparation_id, title, completed):
+    with connect_database() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE event_preparations
+            SET title = ?, completed = ?
+            WHERE id = ? AND event_id = ?
+            """,
+            (title, completed, preparation_id, event_id),
+        )
+        if cursor.rowcount == 0:
+            return None
+
+        row = connection.execute(
+            """
+            SELECT id, event_id, title, completed
+            FROM event_preparations
+            WHERE id = ?
+            """,
+            (preparation_id,),
+        ).fetchone()
+
+    return dict(row)
+
+
+def delete_preparation(event_id, preparation_id):
+    with connect_database() as connection:
+        cursor = connection.execute(
+            """
+            DELETE FROM event_preparations
+            WHERE id = ? AND event_id = ?
+            """,
+            (preparation_id, event_id),
         )
 
     return cursor.rowcount > 0

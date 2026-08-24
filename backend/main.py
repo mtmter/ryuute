@@ -8,17 +8,22 @@ from pydantic import BaseModel, Field
 
 from database import (
     create_event,
+    create_preparation,
     create_task,
     delete_event,
+    delete_preparation,
     delete_task,
     delete_travel_plan,
     get_all_events,
+    get_all_preparations,
     get_all_tasks,
     get_event,
+    get_event_preparations,
     get_travel_plan,
     initialize_database,
     save_travel_plan,
     update_event,
+    update_preparation,
     update_task,
 )
 from routes_service import (
@@ -84,6 +89,22 @@ class Task(BaseModel):
     title: str
     due_at: str | None
     description: str
+    completed: bool
+
+
+class PreparationCreate(BaseModel):
+    title: str
+
+
+class PreparationUpdate(BaseModel):
+    title: str
+    completed: bool
+
+
+class Preparation(BaseModel):
+    id: int
+    event_id: int
+    title: str
     completed: bool
 
 
@@ -323,6 +344,80 @@ def remove_travel_plan(event_id: int):
 
     if not delete_travel_plan(event_id):
         raise HTTPException(status_code=404, detail="移動予定が見つかりません")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.get("/api/preparations", response_model=list[Preparation])
+def read_preparations():
+    return get_all_preparations()
+
+
+@app.get(
+    "/api/events/{event_id}/preparations",
+    response_model=list[Preparation],
+)
+def read_event_preparations(event_id: int):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    return get_event_preparations(event_id)
+
+
+@app.post(
+    "/api/events/{event_id}/preparations",
+    response_model=Preparation,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_preparation(event_id: int, preparation: PreparationCreate):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    title = preparation.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="準備項目名を入力してください")
+
+    return create_preparation(event_id, title)
+
+
+@app.put(
+    "/api/events/{event_id}/preparations/{preparation_id}",
+    response_model=Preparation,
+)
+def edit_preparation(
+    event_id: int,
+    preparation_id: int,
+    preparation: PreparationUpdate,
+):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    title = preparation.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="準備項目名を入力してください")
+
+    updated_preparation = update_preparation(
+        event_id,
+        preparation_id,
+        title,
+        preparation.completed,
+    )
+    if updated_preparation is None:
+        raise HTTPException(status_code=404, detail="準備項目が見つかりません")
+
+    return updated_preparation
+
+
+@app.delete(
+    "/api/events/{event_id}/preparations/{preparation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_preparation(event_id: int, preparation_id: int):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    if not delete_preparation(event_id, preparation_id):
+        raise HTTPException(status_code=404, detail="準備項目が見つかりません")
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
