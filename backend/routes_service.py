@@ -67,7 +67,14 @@ class RouteProviderError(RoutesServiceError):
     """Route Providerの設定またはデータ取得に失敗した。"""
 
 
-def search_route(origin, destination, arrival_at, provider_name=None):
+def search_route(
+    origin,
+    destination,
+    arrival_at,
+    provider_name=None,
+    origin_display_name=None,
+    destination_display_name=None,
+):
     """設定されたProviderから駅すぱあと形式データを取得して変換する。"""
     selected_provider = (
         provider_name or os.getenv("ROUTE_PROVIDER", DEFAULT_ROUTE_PROVIDER)
@@ -79,7 +86,11 @@ def search_route(origin, destination, arrival_at, provider_name=None):
     except (OSError, ValueError, NotImplementedError) as error:
         raise RouteProviderError(str(error)) from error
 
-    return convert_ekispert_route(response_data, origin, destination)
+    return convert_ekispert_route(
+        response_data,
+        origin_display_name or origin,
+        destination_display_name or destination,
+    )
 
 
 def convert_ekispert_route(response_data, origin, destination):

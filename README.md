@@ -918,10 +918,10 @@ VITE_GOOGLE_MAPS_API_KEY=
 ## バックエンド
 
 ```bash
+cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r backend/requirements.txt
-cd backend
+pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
