@@ -1,11 +1,15 @@
+import json
 import os
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import Mock, patch
 
 import httpx
 
 import routes_service
+from route_providers import ekispert_provider
 
 
 SAMPLE_GOOGLE_RESPONSE = {
@@ -52,6 +56,23 @@ SAMPLE_GOOGLE_RESPONSE = {
 
 
 class EkispertRoutesServiceTest(unittest.TestCase):
+    def create_success_response(self, response_data=None):
+        response = Mock()
+        response.is_success = True
+        response.status_code = 200
+        if response_data is None:
+            fixture_path = (
+                Path(__file__).parent
+                / "fixtures"
+                / "ekispert_route_demo.json"
+            )
+            response.json.return_value = json.loads(
+                fixture_path.read_text(encoding="utf-8")
+            )
+        else:
+            response.json.return_value = response_data
+        return response
+
     def test_search_route_uses_mock_fixture_and_common_converter(self):
         result = routes_service.search_route(
             "33.596,130.215",
@@ -143,16 +164,149 @@ class EkispertRoutesServiceTest(unittest.TestCase):
                 "目的地",
             )
 
-    def test_search_route_reports_provider_configuration_errors(self):
-        for provider_name in ("unknown", "ekispert"):
-            with self.subTest(provider_name=provider_name):
-                with self.assertRaises(routes_service.RouteProviderError):
-                    routes_service.search_route(
+    def test_search_route_reports_unknown_provider(self):
+        with self.assertRaises(routes_service.RouteProviderError):
+            routes_service.search_route(
+                "出発地",
+                "目的地",
+                datetime(2026, 8, 25, 10, 12),
+                provider_name="unknown",
+            )
+
+    @patch("route_providers.ekispert_provider.httpx.get")
+    def test_ekispert_provider_builds_arrival_search_query(self, mock_get):
+        mock_get.return_value = self.create_success_response()
+
+        response_data = ekispert_provider.get_route(
+            "33.596,130.215",
+            "33.586,130.398",
+            datetime(2026, 8, 25, 1, 12, tzinfo=timezone.utc),
+            api_key="test-api-key",
+        )
+
+        request_url = mock_get.call_args.args[0]
+        query_string = urlsplit(request_url).query
+        query_parameters = parse_qs(query_string)
+        self.assertEqual(
+            urlsplit(request_url).path,
+            "/v1/json/search/course/extreme",
+        )
+        self.assertEqual(
+            query_parameters,
+            {
+                "key": ["test-api-key"],
+                "viaList": ["33.596,130.215:33.586,130.398"],
+                "gcs": ["wgs84"],
+                "date": ["20260825"],
+                "time": ["1012"],
+                "searchType": ["arrival"],
+                "answerCount": ["1"],
+                "sort": ["ekispert"],
+            },
+        )
+        self.assertIn(":", query_string)
+        self.assertNotIn("%3A", query_string)
+        self.assertEqual(mock_get.call_args.kwargs["timeout"], 10.0)
+        self.assertIn("ResultSet", response_data)
+
+    def test_ekispert_provider_requires_api_key(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ekispert_provider.EkispertApiKeyError):
+                ekispert_provider.get_route(
+                    "出発地",
+                    "目的地",
+                    datetime(2026, 8, 25, 10, 12),
+                )
+
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(routes_service.RoutesApiKeyError):
+                routes_service.search_route(
+                    "出発地",
+                    "目的地",
+                    datetime(2026, 8, 25, 10, 12),
+                    provider_name="ekispert",
+                )
+
+    @patch("route_providers.ekispert_provider.httpx.get")
+    def test_ekispert_provider_reports_timeout_and_connection_errors(
+        self,
+        mock_get,
+    ):
+        error_cases = [
+            httpx.TimeoutException("timeout"),
+            httpx.RequestError("connection failed"),
+        ]
+
+        for request_error in error_cases:
+            with self.subTest(error_type=type(request_error).__name__):
+                mock_get.side_effect = request_error
+                with self.assertRaises(
+                    ekispert_provider.EkispertProviderError
+                ):
+                    ekispert_provider.get_route(
                         "出発地",
                         "目的地",
                         datetime(2026, 8, 25, 10, 12),
-                        provider_name=provider_name,
+                        api_key="test-api-key",
                     )
+
+    @patch("route_providers.ekispert_provider.httpx.get")
+    def test_ekispert_provider_reports_http_and_json_errors(self, mock_get):
+        for status_code in (400, 403, 500):
+            with self.subTest(status_code=status_code):
+                http_error_response = Mock()
+                http_error_response.is_success = False
+                http_error_response.status_code = status_code
+                mock_get.return_value = http_error_response
+                with self.assertRaises(
+                    ekispert_provider.EkispertProviderError
+                ):
+                    ekispert_provider.get_route(
+                        "出発地",
+                        "目的地",
+                        datetime(2026, 8, 25, 10, 12),
+                        api_key="test-api-key",
+                    )
+
+        invalid_json_response = self.create_success_response()
+        invalid_json_response.json.side_effect = ValueError("invalid json")
+        mock_get.return_value = invalid_json_response
+
+        with self.assertRaises(ekispert_provider.EkispertProviderError):
+            ekispert_provider.get_route(
+                "出発地",
+                "目的地",
+                datetime(2026, 8, 25, 10, 12),
+                api_key="test-api-key",
+            )
+
+    @patch("route_providers.ekispert_provider.httpx.get")
+    def test_search_route_uses_ekispert_provider_and_common_converter(
+        self,
+        mock_get,
+    ):
+        mock_get.return_value = self.create_success_response()
+
+        with patch.dict(
+            os.environ,
+            {
+                "EKISPERT_API_KEY": "test-api-key",
+                "ROUTE_PROVIDER": "ekispert",
+            },
+            clear=True,
+        ):
+            result = routes_service.search_route(
+                "33.596,130.215",
+                "33.586,130.398",
+                datetime(2026, 8, 25, 10, 12),
+                origin_display_name="九州大学 伊都キャンパス",
+                destination_display_name="Garraway F",
+            )
+
+        self.assertEqual(result["origin"], "九州大学 伊都キャンパス")
+        self.assertEqual(result["destination"], "Garraway F")
+        self.assertEqual(result["arrival_at"], "2026-08-25T10:12")
+        self.assertEqual(result["transport_mode"], "TRANSIT")
 
 
 class GoogleRoutesServiceTest(unittest.TestCase):

@@ -7,6 +7,10 @@ import httpx
 from dotenv import load_dotenv
 
 from route_providers import get_route_provider
+from route_providers.ekispert_provider import (
+    EkispertApiKeyError,
+    EkispertProviderError,
+)
 
 
 ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
@@ -83,6 +87,10 @@ def search_route(
     try:
         provider = get_route_provider(selected_provider)
         response_data = provider(origin, destination, arrival_at)
+    except EkispertApiKeyError as error:
+        raise RoutesApiKeyError(str(error)) from error
+    except EkispertProviderError as error:
+        raise RouteProviderError(str(error)) from error
     except (OSError, ValueError, NotImplementedError) as error:
         raise RouteProviderError(str(error)) from error
 
