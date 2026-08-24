@@ -57,6 +57,9 @@ class EventCreate(BaseModel):
     description: str = ""
     location_name: str | None = None
     destination: str | None = None
+    destination_place_id: str | None = None
+    destination_lat: float | None = None
+    destination_lng: float | None = None
     arrival_buffer_minutes: int | None = None
 
 
@@ -68,6 +71,9 @@ class Event(BaseModel):
     description: str
     location_name: str | None
     destination: str | None
+    destination_place_id: str | None
+    destination_lat: float | None
+    destination_lng: float | None
     arrival_buffer_minutes: int | None
 
 
@@ -206,6 +212,9 @@ def add_event(event: EventCreate):
         event.description,
         event.location_name,
         event.destination,
+        event.destination_place_id,
+        event.destination_lat,
+        event.destination_lng,
         event.arrival_buffer_minutes,
     )
 
@@ -226,6 +235,9 @@ def edit_event(event_id: int, event: EventCreate):
         event.description,
         event.location_name,
         event.destination,
+        event.destination_place_id,
+        event.destination_lat,
+        event.destination_lng,
         event.arrival_buffer_minutes,
     )
     if updated_event is None:

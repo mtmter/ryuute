@@ -28,6 +28,9 @@ def initialize_database():
                 description TEXT NOT NULL DEFAULT '',
                 location_name TEXT,
                 destination TEXT,
+                destination_place_id TEXT,
+                destination_lat REAL,
+                destination_lng REAL,
                 arrival_buffer_minutes INTEGER
             )
             """)
@@ -42,6 +45,9 @@ def initialize_database():
             "description": "TEXT NOT NULL DEFAULT ''",
             "location_name": "TEXT",
             "destination": "TEXT",
+            "destination_place_id": "TEXT",
+            "destination_lat": "REAL",
+            "destination_lng": "REAL",
             "arrival_buffer_minutes": "INTEGER",
         }
 
@@ -131,6 +137,9 @@ def get_all_events():
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes
             FROM events
             ORDER BY id
@@ -151,6 +160,9 @@ def get_event(event_id):
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes
             FROM events
             WHERE id = ?
@@ -171,6 +183,9 @@ def create_event(
     description="",
     location_name=None,
     destination=None,
+    destination_place_id=None,
+    destination_lat=None,
+    destination_lng=None,
     arrival_buffer_minutes=None,
 ):
     with connect_database() as connection:
@@ -183,9 +198,12 @@ def create_event(
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 title,
@@ -194,6 +212,9 @@ def create_event(
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes,
             ),
         )
@@ -207,6 +228,9 @@ def create_event(
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes
             FROM events
             WHERE id = ?
@@ -225,6 +249,9 @@ def update_event(
     description="",
     location_name=None,
     destination=None,
+    destination_place_id=None,
+    destination_lat=None,
+    destination_lng=None,
     arrival_buffer_minutes=None,
 ):
     with connect_database() as connection:
@@ -238,6 +265,9 @@ def update_event(
                 description = ?,
                 location_name = ?,
                 destination = ?,
+                destination_place_id = ?,
+                destination_lat = ?,
+                destination_lng = ?,
                 arrival_buffer_minutes = ?
             WHERE id = ?
             """,
@@ -248,6 +278,9 @@ def update_event(
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes,
                 event_id,
             ),
@@ -265,6 +298,9 @@ def update_event(
                 description,
                 location_name,
                 destination,
+                destination_place_id,
+                destination_lat,
+                destination_lng,
                 arrival_buffer_minutes
             FROM events
             WHERE id = ?
