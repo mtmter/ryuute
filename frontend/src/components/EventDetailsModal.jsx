@@ -4,6 +4,7 @@ import DateTimePicker from "./DateTimePicker";
 import PlaceAutocompleteInput from "./PlaceAutocompleteInput";
 import PreparationChecklist from "./PreparationChecklist";
 import RouteSearchModal from "./RouteSearchModal";
+import TravelPlanDetails from "./TravelPlanDetails";
 
 function formatEventDateTime(value) {
   const date = parseDateTime(value);
@@ -78,6 +79,7 @@ function EventDetailsModal({
   onRouteRegister,
   onRouteSearch,
   onRouteSearchSuccess,
+  onTravelPlanLoad,
   onUpdate,
   preparations,
   routeSearchResult,
@@ -100,6 +102,8 @@ function EventDetailsModal({
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRouteSearching, setIsRouteSearching] = useState(false);
+  const [travelPlan, setTravelPlan] = useState(null);
+  const [isTravelPlanLoading, setIsTravelPlanLoading] = useState(true);
 
   const isBusy = isSubmitting || isRouteSearching;
   const googleMapsUrl = createGoogleMapsUrl(event);
@@ -114,6 +118,39 @@ function EventDetailsModal({
       : event.destination_place_id
         ? "Google Mapsで場所を表示"
         : "未設定");
+  const canSearchRoute = Boolean(
+    event.destination ||
+      event.location_name ||
+      (hasCoordinateValue(event.destination_lat) &&
+        hasCoordinateValue(event.destination_lng)),
+  );
+
+  useEffect(() => {
+    let shouldIgnoreResult = false;
+
+    async function loadTravelPlan() {
+      try {
+        const loadedTravelPlan = await onTravelPlanLoad(event.id);
+        if (!shouldIgnoreResult) {
+          setTravelPlan(loadedTravelPlan);
+        }
+      } catch (loadError) {
+        if (!shouldIgnoreResult) {
+          setErrorMessage(loadError.message);
+        }
+      } finally {
+        if (!shouldIgnoreResult) {
+          setIsTravelPlanLoading(false);
+        }
+      }
+    }
+
+    loadTravelPlan();
+
+    return () => {
+      shouldIgnoreResult = true;
+    };
+  }, [event.id, onTravelPlanLoad]);
 
   useEffect(() => {
     function handleKeyDown(keyEvent) {
@@ -270,6 +307,11 @@ function EventDetailsModal({
             onBack={() => setMode("details")}
             onBusyChange={setIsRouteSearching}
             onRegister={onRouteRegister}
+            onRegisterSuccess={(savedTravelPlan) => {
+              setTravelPlan(savedTravelPlan);
+              setErrorMessage("");
+              setMode("details");
+            }}
             onSearch={onRouteSearch}
             onSearchSuccess={onRouteSearchSuccess}
             initialRouteResult={
@@ -501,17 +543,30 @@ function EventDetailsModal({
               onUpdate={onPreparationUpdate}
             />
 
-            {event.destination && (
-              <button
-                className="route-search-button"
-                type="button"
-                onClick={() => {
-                  setErrorMessage("");
-                  setMode("route");
-                }}
-              >
-                経路を検索
-              </button>
+            {isTravelPlanLoading ? (
+              <section className="travel-plan-section">
+                <h3>移動予定</h3>
+                <p className="travel-plan-empty">読み込み中...</p>
+              </section>
+            ) : travelPlan || canSearchRoute ? (
+              <TravelPlanDetails
+                travelPlan={travelPlan}
+                onSearch={
+                  canSearchRoute
+                    ? () => {
+                        setErrorMessage("");
+                        setMode("route");
+                      }
+                    : null
+                }
+              />
+            ) : (
+              <section className="travel-plan-section">
+                <h3>移動予定</h3>
+                <p className="travel-plan-empty">
+                  経路検索には予定の目的地が必要です
+                </p>
+              </section>
             )}
 
             {errorMessage && (

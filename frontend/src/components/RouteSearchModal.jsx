@@ -26,6 +26,7 @@ function RouteSearchModal({
   onBack,
   onBusyChange,
   onRegister,
+  onRegisterSuccess,
   onSearch,
   onSearchSuccess,
 }) {
@@ -33,6 +34,7 @@ function RouteSearchModal({
   const [originPlace, setOriginPlace] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [routeResult, setRouteResult] = useState(initialRouteResult);
 
   async function handleSubmit(submitEvent) {
@@ -74,15 +76,38 @@ function RouteSearchModal({
     }
   }
 
+  async function handleRegister(route) {
+    if (isRegistering) {
+      return;
+    }
+
+    setIsRegistering(true);
+    onBusyChange(true);
+    setErrorMessage("");
+
+    try {
+      const savedTravelPlan = await onRegister(event.id, route);
+      onRegisterSuccess(savedTravelPlan);
+    } catch (registerError) {
+      setErrorMessage(registerError.message);
+    } finally {
+      setIsRegistering(false);
+      onBusyChange(false);
+    }
+  }
+
   if (routeResult) {
     return (
       <RouteSearchResult
+        errorMessage={errorMessage}
+        isRegistering={isRegistering}
         route={routeResult}
-        onRegister={onRegister}
+        onRegister={handleRegister}
         onRetry={() => {
           setOrigin("");
           setOriginPlace(null);
           setRouteResult(null);
+          setErrorMessage("");
         }}
       />
     );
