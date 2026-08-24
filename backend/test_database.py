@@ -158,6 +158,107 @@ class TravelPlanDatabaseTest(unittest.TestCase):
         self.assertIsNone(database.get_travel_plan(self.event["id"]))
 
 
+class PreparationDatabaseTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        database_path = Path(self.temporary_directory.name) / "test_schedule.db"
+        self.database_path_patch = patch.object(
+            database,
+            "DATABASE_PATH",
+            database_path,
+        )
+        self.database_path_patch.start()
+        database.initialize_database()
+        self.event = database.create_event(
+            "成果物発表",
+            "2026-08-24T14:00",
+            "2026-08-24T15:00",
+        )
+
+    def tearDown(self):
+        self.database_path_patch.stop()
+        self.temporary_directory.cleanup()
+
+    def test_preparations_can_be_created_loaded_updated_and_deleted(self):
+        first_preparation = database.create_preparation(
+            self.event["id"],
+            "PCを充電する",
+        )
+        second_preparation = database.create_preparation(
+            self.event["id"],
+            "発表資料を提出する",
+        )
+
+        self.assertEqual(
+            database.get_event_preparations(self.event["id"]),
+            [first_preparation, second_preparation],
+        )
+        self.assertEqual(
+            database.get_all_preparations(),
+            [first_preparation, second_preparation],
+        )
+
+        updated_preparation = database.update_preparation(
+            self.event["id"],
+            first_preparation["id"],
+            "PCとモバイルバッテリーを充電する",
+            True,
+        )
+        self.assertEqual(
+            updated_preparation["title"],
+            "PCとモバイルバッテリーを充電する",
+        )
+        self.assertEqual(updated_preparation["completed"], 1)
+
+        self.assertTrue(
+            database.delete_preparation(
+                self.event["id"],
+                second_preparation["id"],
+            )
+        )
+        self.assertEqual(
+            database.get_event_preparations(self.event["id"]),
+            [updated_preparation],
+        )
+
+    def test_preparation_must_belong_to_the_specified_event(self):
+        other_event = database.create_event(
+            "別の予定",
+            "2026-08-24T16:00",
+            "2026-08-24T17:00",
+        )
+        preparation = database.create_preparation(
+            self.event["id"],
+            "HDMI変換アダプターを持つ",
+        )
+
+        self.assertIsNone(
+            database.update_preparation(
+                other_event["id"],
+                preparation["id"],
+                preparation["title"],
+                True,
+            )
+        )
+        self.assertFalse(
+            database.delete_preparation(
+                other_event["id"],
+                preparation["id"],
+            )
+        )
+
+    def test_deleting_event_also_deletes_its_preparations(self):
+        database.create_preparation(self.event["id"], "発表練習をする")
+
+        database.delete_event(self.event["id"])
+
+        self.assertEqual(database.get_event_preparations(self.event["id"]), [])
+
+    def test_preparation_cannot_be_saved_for_missing_event(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            database.create_preparation(999, "存在しない予定の準備")
+
+
 class TravelPlanMigrationTest(unittest.TestCase):
     def test_existing_travel_plan_is_kept_when_columns_are_added(self):
         with tempfile.TemporaryDirectory() as temporary_directory:

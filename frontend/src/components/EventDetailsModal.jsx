@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { WEEKDAY_NAMES, parseDateTime } from "../dateUtils";
 import DateTimePicker from "./DateTimePicker";
+import PreparationChecklist from "./PreparationChecklist";
 import RouteSearchModal from "./RouteSearchModal";
 
 function formatEventDateTime(value) {
@@ -16,11 +17,15 @@ function formatEventDateTime(value) {
 function EventDetailsModal({
   event,
   onClose,
+  onPreparationAdd,
+  onPreparationDelete,
+  onPreparationUpdate,
   onDelete,
   onRouteRegister,
   onRouteSearch,
   onRouteSearchSuccess,
   onUpdate,
+  preparations,
   routeSearchResult,
 }) {
   const [mode, setMode] = useState("details");
@@ -388,6 +393,14 @@ function EventDetailsModal({
                 </dd>
               </div>
             </dl>
+
+            <PreparationChecklist
+              eventId={event.id}
+              preparations={preparations}
+              onAdd={onPreparationAdd}
+              onDelete={onPreparationDelete}
+              onUpdate={onPreparationUpdate}
+            />
 
             {event.destination && (
               <button
