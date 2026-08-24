@@ -212,6 +212,55 @@ async function getResponseError(response, defaultMessage) {
   return defaultMessage;
 }
 
+async function getTravelPlan(eventId) {
+  let response;
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/events/${eventId}/travel-plan`,
+    );
+  } catch {
+    throw new Error("移動予定を取得できませんでした");
+  }
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      await getResponseError(response, "移動予定を取得できませんでした"),
+    );
+  }
+
+  return response.json();
+}
+
+async function saveTravelPlan(eventId, route) {
+  let response;
+
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/events/${eventId}/travel-plan`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(route),
+      },
+    );
+  } catch {
+    throw new Error("移動予定を保存できませんでした");
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      await getResponseError(response, "移動予定を保存できませんでした"),
+    );
+  }
+
+  return response.json();
+}
+
 function App() {
   const [activeView, setActiveView] = useState("month");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -585,6 +634,12 @@ function App() {
     return response.json();
   }
 
+  async function handleRouteRegister(eventId, route) {
+    const savedTravelPlan = await saveTravelPlan(eventId, route);
+    setRouteSearchResult(null);
+    return savedTravelPlan;
+  }
+
   return (
     <div
       className={`schedule-app${activeView !== "tasks" ? " calendar-view-active" : ""}`}
@@ -796,12 +851,15 @@ function App() {
 
       {selectedEvent && (
         <EventDetailsModal
+          key={selectedEvent.id}
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
           onDelete={handleDeleteEvent}
           onPreparationAdd={handleCreatePreparation}
           onPreparationDelete={handleDeletePreparation}
           onPreparationUpdate={handleUpdatePreparation}
+          onTravelPlanLoad={getTravelPlan}
+          onRouteRegister={handleRouteRegister}
           onRouteSearch={handleRouteSearch}
           onRouteSearchSuccess={(result) =>
             setRouteSearchResult({ eventId: selectedEvent.id, result })

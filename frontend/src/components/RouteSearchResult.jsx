@@ -12,7 +12,13 @@ function getTransportLabel(type) {
   return type;
 }
 
-function RouteSearchResult({ onRegister, onRetry, route }) {
+function RouteSearchResult({
+  errorMessage,
+  isRegistering,
+  onRegister,
+  onRetry,
+  route,
+}) {
   return (
     <div className="route-result">
       <div className="route-result-heading">
@@ -72,16 +78,28 @@ function RouteSearchResult({ onRegister, onRetry, route }) {
         <p className="route-destination-label">目的地：{route.destination}</p>
       </div>
 
+      {errorMessage && (
+        <p className="modal-error-message" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
       <div className="modal-actions route-result-actions">
-        <button className="secondary-button" type="button" onClick={onRetry}>
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={isRegistering}
+          onClick={onRetry}
+        >
           検索条件を変更
         </button>
         <button
           className="primary-button"
           type="button"
+          disabled={isRegistering}
           onClick={() => onRegister?.(route)}
         >
-          この経路を登録
+          {isRegistering ? "保存中..." : "この経路を登録"}
         </button>
       </div>
     </div>

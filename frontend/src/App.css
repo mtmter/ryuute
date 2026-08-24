@@ -1311,6 +1311,60 @@
   background: #244fae;
 }
 
+.travel-plan-section {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid #e4e8ef;
+}
+
+.travel-plan-section h3,
+.travel-plan-section p {
+  margin: 0;
+}
+
+.travel-plan-section h3 {
+  color: #344258;
+  font-size: 0.95rem;
+}
+
+.travel-plan-empty {
+  color: #747f91;
+  font-size: 0.86rem;
+}
+
+.travel-plan-summary {
+  display: grid;
+  gap: 3px;
+  color: #26344b;
+}
+
+.travel-plan-summary strong {
+  font-size: 1.2rem;
+}
+
+.travel-plan-summary span,
+.travel-plan-route span {
+  color: #747f91;
+  font-size: 0.8rem;
+}
+
+.travel-plan-route {
+  display: grid;
+  gap: 5px;
+  color: #2d384b;
+}
+
+.travel-plan-route > div {
+  display: grid;
+  gap: 5px;
+}
+
+.travel-plan-route span {
+  padding-left: 4px;
+}
+
 .route-search-form {
   display: grid;
   gap: 20px;
