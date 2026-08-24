@@ -441,6 +441,20 @@
 .month-task {
   color: #613b8f;
   background: #f2eaff;
+  cursor: pointer;
+}
+
+.month-task:hover,
+.month-task:focus-visible,
+.week-task:hover,
+.week-task:focus-visible {
+  background: #e7d8fa;
+}
+
+.month-task:focus-visible,
+.week-task:focus-visible {
+  outline: 2px solid #7a50ad;
+  outline-offset: 1px;
 }
 
 .month-item-time {
@@ -546,6 +560,7 @@
   border-radius: 4px;
   color: #653f91;
   background: #f0e6fc;
+  cursor: pointer;
   font-size: 0.7rem;
 }
 
@@ -688,6 +703,7 @@
 .task-row-content {
   display: grid;
   min-width: 0;
+  flex: 1;
   gap: 3px;
 }
 
@@ -711,6 +727,27 @@
 .task-row.is-completed .task-row-title {
   color: #8891a0;
   text-decoration: line-through;
+}
+
+.task-row-details-button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid #cbd3df;
+  border-radius: 7px;
+  color: #45629d;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.task-row-details-button:hover {
+  background: #f2f5f9;
+}
+
+.task-row-details-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .completed-tasks {
@@ -880,6 +917,7 @@
 
 .add-item-modal,
 .event-details-modal,
+.task-details-modal,
 .notification-settings-modal {
   width: min(560px, 100%);
   max-height: calc(100vh - 48px);
@@ -1032,6 +1070,7 @@
 }
 
 .event-details-content,
+.task-details-content,
 .delete-confirmation {
   display: grid;
   gap: 20px;
@@ -1096,7 +1135,8 @@
   font-size: 0.82rem;
 }
 
-.event-edit-form {
+.event-edit-form,
+.task-edit-form {
   margin-top: 22px;
 }
 
@@ -1593,7 +1633,8 @@
   justify-content: space-between;
 }
 
-.event-details-actions {
+.event-details-actions,
+.task-details-actions {
   justify-content: space-between;
   padding-top: 2px;
 }

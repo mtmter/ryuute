@@ -15,6 +15,7 @@ function MonthCalendar({
   selectedDate,
   onDateClick,
   onEventClick,
+  onTaskClick,
 }) {
   const calendarDates = getMonthDates(selectedDate);
   const today = new Date();
@@ -131,7 +132,22 @@ function MonthCalendar({
                         className="month-task"
                         title={`タスク: ${task.title}`}
                         key={`task-${task.id}`}
-                        onClick={(event) => event.stopPropagation()}
+                        role="button"
+                        tabIndex={0}
+                        onClick={(clickEvent) => {
+                          clickEvent.stopPropagation();
+                          onTaskClick(task);
+                        }}
+                        onKeyDown={(keyEvent) => {
+                          if (
+                            keyEvent.key === "Enter" ||
+                            keyEvent.key === " "
+                          ) {
+                            keyEvent.preventDefault();
+                            keyEvent.stopPropagation();
+                            onTaskClick(task);
+                          }
+                        }}
                       >
                         <span className="task-dot" aria-hidden="true" />
                         <span className="month-item-time">

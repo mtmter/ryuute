@@ -1,6 +1,6 @@
 import { formatTaskDue, sortTasksByDueDate } from "../dateUtils";
 
-function TaskRow({ task, updatingTaskId, onTaskToggle }) {
+function TaskRow({ task, updatingTaskId, onTaskSelect, onTaskToggle }) {
   return (
     <li className={`task-row${task.completed ? " is-completed" : ""}`}>
       <input
@@ -17,11 +17,20 @@ function TaskRow({ task, updatingTaskId, onTaskToggle }) {
         </time>
         {task.description && <p>{task.description}</p>}
       </div>
+      <button
+        className="task-row-details-button"
+        type="button"
+        disabled={updatingTaskId === task.id}
+        aria-label={`${task.title}の詳細を開く`}
+        onClick={() => onTaskSelect(task)}
+      >
+        詳細
+      </button>
     </li>
   );
 }
 
-function TaskList({ tasks, updatingTaskId, onTaskToggle }) {
+function TaskList({ tasks, updatingTaskId, onTaskSelect, onTaskToggle }) {
   const incompleteTasks = sortTasksByDueDate(
     tasks.filter((task) => !task.completed),
   );
@@ -47,6 +56,7 @@ function TaskList({ tasks, updatingTaskId, onTaskToggle }) {
             <TaskRow
               task={task}
               updatingTaskId={updatingTaskId}
+              onTaskSelect={onTaskSelect}
               onTaskToggle={onTaskToggle}
               key={task.id}
             />
@@ -68,6 +78,7 @@ function TaskList({ tasks, updatingTaskId, onTaskToggle }) {
               <TaskRow
                 task={task}
                 updatingTaskId={updatingTaskId}
+                onTaskSelect={onTaskSelect}
                 onTaskToggle={onTaskToggle}
                 key={task.id}
               />
