@@ -1291,6 +1291,63 @@
   margin-top: 22px;
 }
 
+.place-autocomplete-container {
+  position: relative;
+  z-index: 2;
+}
+
+.place-autocomplete-container .is-hidden {
+  display: none;
+}
+
+.place-autocomplete-widget {
+  width: 100%;
+  border: 1px solid #cbd3df;
+  border-radius: 7px;
+  background: #ffffff;
+  color-scheme: light;
+  font: inherit;
+}
+
+.place-autocomplete-widget:focus-within {
+  border-color: #6d87be;
+}
+
+.place-autocomplete-widget::part(input) {
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 0;
+  border-radius: 6px;
+  outline: 0;
+  color: #283347;
+  background: #ffffff;
+  font: inherit;
+}
+
+.place-autocomplete-widget::part(focus-ring) {
+  border: 0;
+  outline: 0;
+}
+
+.place-autocomplete-widget::part(prediction-list) {
+  z-index: 30;
+}
+
+.place-autocomplete-status,
+.place-autocomplete-error {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.place-autocomplete-status {
+  color: #747f91;
+}
+
+.place-autocomplete-error {
+  color: #a73845;
+}
+
 .route-search-summary {
   display: grid;
   gap: 0;

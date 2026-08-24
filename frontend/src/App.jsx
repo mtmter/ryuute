@@ -555,14 +555,14 @@ function App() {
     );
   }
 
-  async function handleRouteSearch(eventId, origin) {
+  async function handleRouteSearch(eventId, originRequest) {
     let response;
 
     try {
       response = await fetch(`${API_BASE_URL}/events/${eventId}/route-search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ origin }),
+        body: JSON.stringify(originRequest),
       });
     } catch {
       throw new Error("経路検索サービスとの通信に失敗しました");
