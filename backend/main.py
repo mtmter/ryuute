@@ -1,20 +1,31 @@
+import json
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from database import (
     create_event,
     create_task,
     delete_event,
     delete_task,
+    delete_travel_plan,
     get_all_events,
     get_all_tasks,
+    get_event,
+    get_travel_plan,
     initialize_database,
+    save_travel_plan,
     update_event,
     update_task,
+)
+from routes_service import (
+    RouteNotFoundError,
+    RoutesApiKeyError,
+    RoutesServiceError,
+    search_route,
 )
 
 
@@ -76,6 +87,39 @@ class Task(BaseModel):
     completed: bool
 
 
+class RouteSearchRequest(BaseModel):
+    origin: str
+
+
+class RouteSegment(BaseModel):
+    type: str
+    from_: str = Field(alias="from")
+    to: str
+    departure_at: str
+    arrival_at: str
+    duration_minutes: int = Field(ge=0)
+    line_name: str | None = None
+
+
+class RouteSearchResponse(BaseModel):
+    origin: str
+    destination: str
+    departure_at: str
+    arrival_at: str
+    duration_minutes: int = Field(ge=0)
+    transport_mode: str
+    segments: list[RouteSegment]
+
+
+class TravelPlanSave(RouteSearchResponse):
+    pass
+
+
+class TravelPlan(RouteSearchResponse):
+    id: int
+    event_id: int
+
+
 def validate_event_times(start_at: str, end_at: str):
     try:
         start_datetime = datetime.strptime(start_at, "%Y-%m-%dT%H:%M")
@@ -91,6 +135,29 @@ def validate_event_times(start_at: str, end_at: str):
             status_code=400,
             detail="終了日時は開始日時以降にしてください",
         )
+
+
+def travel_plan_to_response(travel_plan):
+    try:
+        route_details = json.loads(travel_plan["route_details"])
+        segments = route_details["segments"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise HTTPException(
+            status_code=500,
+            detail="保存された移動予定の経路情報が不正です",
+        ) from error
+
+    return {
+        "id": travel_plan["id"],
+        "event_id": travel_plan["event_id"],
+        "origin": travel_plan["origin"],
+        "destination": travel_plan["destination"],
+        "departure_at": travel_plan["departure_at"],
+        "arrival_at": travel_plan["arrival_at"],
+        "duration_minutes": travel_plan["duration_minutes"],
+        "transport_mode": travel_plan["transport_mode"],
+        "segments": segments,
+    }
 
 
 @app.get("/api/health")
@@ -150,6 +217,112 @@ def edit_event(event_id: int, event: EventCreate):
 def remove_event(event_id: int):
     if not delete_event(event_id):
         raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post(
+    "/api/events/{event_id}/route-search",
+    response_model=RouteSearchResponse,
+)
+def search_event_route(event_id: int, request: RouteSearchRequest):
+    event = get_event(event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    origin = request.origin.strip()
+    if not origin:
+        raise HTTPException(status_code=400, detail="出発地を入力してください")
+
+    destination = (event["destination"] or "").strip()
+    if not destination:
+        raise HTTPException(status_code=400, detail="予定に目的地が設定されていません")
+
+    try:
+        event_start = datetime.strptime(event["start_at"], "%Y-%m-%dT%H:%M")
+    except (TypeError, ValueError) as error:
+        raise HTTPException(
+            status_code=400,
+            detail="予定の開始日時が不正です",
+        ) from error
+
+    arrival_buffer_minutes = event["arrival_buffer_minutes"] or 0
+    desired_arrival_at = event_start - timedelta(
+        minutes=arrival_buffer_minutes,
+    )
+
+    try:
+        return search_route(origin, destination, desired_arrival_at)
+    except RouteNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except RoutesApiKeyError as error:
+        raise HTTPException(
+            status_code=500,
+            detail="経路検索のAPIキーが設定されていません",
+        ) from error
+    except RoutesServiceError as error:
+        raise HTTPException(
+            status_code=502,
+            detail="経路検索サービスとの通信に失敗しました",
+        ) from error
+
+
+@app.get(
+    "/api/events/{event_id}/travel-plan",
+    response_model=TravelPlan,
+)
+def read_travel_plan(event_id: int):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    travel_plan = get_travel_plan(event_id)
+    if travel_plan is None:
+        raise HTTPException(status_code=404, detail="移動予定が見つかりません")
+
+    return travel_plan_to_response(travel_plan)
+
+
+@app.put(
+    "/api/events/{event_id}/travel-plan",
+    response_model=TravelPlan,
+)
+def put_travel_plan(event_id: int, travel_plan: TravelPlanSave):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    route_details = json.dumps(
+        {
+            "segments": [
+                segment.model_dump(by_alias=True)
+                for segment in travel_plan.segments
+            ]
+        },
+        ensure_ascii=False,
+    )
+    saved_travel_plan = save_travel_plan(
+        event_id,
+        travel_plan.origin,
+        travel_plan.destination,
+        travel_plan.departure_at,
+        travel_plan.arrival_at,
+        travel_plan.duration_minutes,
+        travel_plan.transport_mode,
+        route_details,
+    )
+
+    return travel_plan_to_response(saved_travel_plan)
+
+
+@app.delete(
+    "/api/events/{event_id}/travel-plan",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_travel_plan(event_id: int):
+    if get_event(event_id) is None:
+        raise HTTPException(status_code=404, detail="予定が見つかりません")
+
+    if not delete_travel_plan(event_id):
+        raise HTTPException(status_code=404, detail="移動予定が見つかりません")
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
