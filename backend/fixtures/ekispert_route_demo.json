@@ -1,0 +1,91 @@
+{
+  "ResultSet": {
+    "apiVersion": "mock-1.0",
+    "engineVersion": "mock-1.0",
+    "Course": {
+      "searchType": "arrival",
+      "dataType": "onTimetable",
+      "Route": {
+        "timeOther": "6",
+        "timeOnBoard": "42",
+        "timeWalk": "25",
+        "transferCount": "0",
+        "Line": [
+          {
+            "timeOnBoard": "15",
+            "Name": "徒歩",
+            "Type": "walk",
+            "DepartureState": {
+              "Datetime": {
+                "text": "2026-08-25T08:59:00+09:00",
+                "operation": "today"
+              }
+            },
+            "ArrivalState": {
+              "Datetime": {
+                "text": "2026-08-25T09:14:00+09:00",
+                "operation": "today"
+              }
+            }
+          },
+          {
+            "timeOnBoard": "42",
+            "Name": "JR筑肥線・福岡市地下鉄空港線",
+            "Type": "train",
+            "DepartureState": {
+              "Datetime": {
+                "text": "2026-08-25T09:20:00+09:00",
+                "operation": "today"
+              }
+            },
+            "ArrivalState": {
+              "Datetime": {
+                "text": "2026-08-25T10:02:00+09:00",
+                "operation": "today"
+              }
+            }
+          },
+          {
+            "timeOnBoard": "10",
+            "Name": "徒歩",
+            "Type": "walk",
+            "DepartureState": {
+              "Datetime": {
+                "text": "2026-08-25T10:02:00+09:00",
+                "operation": "today"
+              }
+            },
+            "ArrivalState": {
+              "Datetime": {
+                "text": "2026-08-25T10:12:00+09:00",
+                "operation": "today"
+              }
+            }
+          }
+        ],
+        "Point": [
+          {
+            "Name": "九州大学 伊都キャンパス"
+          },
+          {
+            "Station": {
+              "code": "demo-kyudai-gakkentoshi",
+              "Name": "九大学研都市",
+              "Type": "train"
+            }
+          },
+          {
+            "Station": {
+              "code": "demo-tenjin",
+              "Name": "天神",
+              "Type": "train"
+            }
+          },
+          {
+            "Name": "Garraway F"
+          }
+        ]
+      }
+    }
+  }
+}

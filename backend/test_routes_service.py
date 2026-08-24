@@ -51,7 +51,107 @@ SAMPLE_GOOGLE_RESPONSE = {
 }
 
 
-class RoutesServiceTest(unittest.TestCase):
+class EkispertRoutesServiceTest(unittest.TestCase):
+    def test_search_route_uses_mock_fixture_and_common_converter(self):
+        result = routes_service.search_route(
+            "九州大学 伊都キャンパス",
+            "Garraway F",
+            datetime(2026, 8, 25, 10, 12),
+            provider_name="mock",
+        )
+
+        self.assertEqual(result["departure_at"], "2026-08-25T08:59")
+        self.assertEqual(result["arrival_at"], "2026-08-25T10:12")
+        self.assertEqual(result["duration_minutes"], 73)
+        self.assertEqual(result["transport_mode"], "TRANSIT")
+        self.assertEqual(
+            [segment["type"] for segment in result["segments"]],
+            ["WALK", "TRANSIT", "WALK"],
+        )
+        self.assertEqual(
+            result["segments"][1]["line_name"],
+            "JR筑肥線・福岡市地下鉄空港線",
+        )
+
+    def test_convert_ekispert_route_accepts_object_and_array_values(self):
+        response_data = {
+            "ResultSet": {
+                "Course": [
+                    {
+                        "Route": {
+                            "Line": {
+                                "timeOnBoard": "7",
+                                "Name": "JR中央線",
+                                "Type": "train",
+                                "DepartureState": {
+                                    "Datetime": {
+                                        "text": "2026-08-25T09:00:00+09:00"
+                                    }
+                                },
+                                "ArrivalState": {
+                                    "Datetime": {
+                                        "text": "2026-08-25T09:07:00+09:00"
+                                    }
+                                },
+                            },
+                            "Point": [
+                                {"Station": {"Name": "高円寺"}},
+                                {"Station": {"Name": "新宿"}},
+                            ],
+                        }
+                    }
+                ]
+            }
+        }
+
+        result = routes_service.convert_ekispert_route(
+            response_data,
+            "高円寺",
+            "新宿",
+        )
+
+        self.assertEqual(result["duration_minutes"], 7)
+        self.assertEqual(result["segments"][0]["type"], "TRANSIT")
+        self.assertEqual(result["segments"][0]["line_name"], "JR中央線")
+
+    def test_convert_ekispert_route_reports_missing_and_invalid_routes(self):
+        with self.assertRaises(routes_service.RouteNotFoundError):
+            routes_service.convert_ekispert_route(
+                {"ResultSet": {}},
+                "出発地",
+                "目的地",
+            )
+
+        invalid_route = {
+            "ResultSet": {
+                "Course": {
+                    "Route": {
+                        "Line": {"Name": "徒歩", "Type": "walk"},
+                        "Point": {"Name": "出発地"},
+                    }
+                }
+            }
+        }
+        with self.assertRaises(routes_service.RoutesResponseError):
+            routes_service.convert_ekispert_route(
+                invalid_route,
+                "出発地",
+                "目的地",
+            )
+
+    def test_search_route_reports_provider_configuration_errors(self):
+        for provider_name in ("unknown", "ekispert"):
+            with self.subTest(provider_name=provider_name):
+                with self.assertRaises(routes_service.RouteProviderError):
+                    routes_service.search_route(
+                        "出発地",
+                        "目的地",
+                        datetime(2026, 8, 25, 10, 12),
+                        provider_name=provider_name,
+                    )
+
+
+class GoogleRoutesServiceTest(unittest.TestCase):
     def create_success_response(self, response_data=None):
         response = Mock()
         response.is_success = True
@@ -66,7 +166,7 @@ class RoutesServiceTest(unittest.TestCase):
     ):
         mock_post.return_value = self.create_success_response()
 
-        result = routes_service.search_route(
+        result = routes_service.search_google_route(
             "九州大学 伊都キャンパス",
             "Garraway F",
             datetime(2026, 8, 24, 10, 20),
@@ -144,7 +244,7 @@ class RoutesServiceTest(unittest.TestCase):
     def test_search_route_raises_error_when_api_key_is_missing(self):
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(routes_service.RoutesApiKeyError):
-                routes_service.search_route(
+                routes_service.search_google_route(
                     "出発地",
                     "目的地",
                     datetime(2026, 8, 24, 10, 20),
@@ -155,7 +255,7 @@ class RoutesServiceTest(unittest.TestCase):
         mock_post.side_effect = httpx.TimeoutException("timeout")
 
         with self.assertRaises(routes_service.RoutesTimeoutError):
-            routes_service.search_route(
+            routes_service.search_google_route(
                 "出発地",
                 "目的地",
                 datetime(2026, 8, 24, 10, 20),
@@ -167,7 +267,7 @@ class RoutesServiceTest(unittest.TestCase):
         mock_post.side_effect = httpx.RequestError("connection failed")
 
         with self.assertRaises(routes_service.RoutesConnectionError):
-            routes_service.search_route(
+            routes_service.search_google_route(
                 "出発地",
                 "目的地",
                 datetime(2026, 8, 24, 10, 20),
@@ -185,7 +285,7 @@ class RoutesServiceTest(unittest.TestCase):
         mock_post.return_value = response
 
         with self.assertRaises(routes_service.RoutesApiError) as context:
-            routes_service.search_route(
+            routes_service.search_google_route(
                 "出発地",
                 "目的地",
                 datetime(2026, 8, 24, 10, 20),

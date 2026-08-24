@@ -6,6 +6,8 @@ from pathlib import Path
 import httpx
 from dotenv import load_dotenv
 
+from route_providers import get_route_provider
+
 
 ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 REQUEST_TIMEOUT_SECONDS = 10.0
@@ -25,6 +27,8 @@ ROUTES_FIELD_MASK = ",".join(
 )
 
 load_dotenv(Path(__file__).with_name(".env"))
+
+DEFAULT_ROUTE_PROVIDER = "mock"
 
 
 class RoutesServiceError(Exception):
@@ -56,10 +60,174 @@ class RouteNotFoundError(RoutesServiceError):
 
 
 class RoutesResponseError(RoutesServiceError):
-    """Googleのレスポンスをアプリ用データへ変換できなかった。"""
+    """外部サービスのレスポンスをアプリ用データへ変換できなかった。"""
 
 
-def search_route(origin, destination, arrival_at, api_key=None):
+class RouteProviderError(RoutesServiceError):
+    """Route Providerの設定またはデータ取得に失敗した。"""
+
+
+def search_route(origin, destination, arrival_at, provider_name=None):
+    """設定されたProviderから駅すぱあと形式データを取得して変換する。"""
+    selected_provider = (
+        provider_name or os.getenv("ROUTE_PROVIDER", DEFAULT_ROUTE_PROVIDER)
+    ).strip().lower()
+
+    try:
+        provider = get_route_provider(selected_provider)
+        response_data = provider(origin, destination, arrival_at)
+    except (OSError, ValueError, NotImplementedError) as error:
+        raise RouteProviderError(str(error)) from error
+
+    return convert_ekispert_route(response_data, origin, destination)
+
+
+def convert_ekispert_route(response_data, origin, destination):
+    """駅すぱあと形式のレスポンスをアプリ共通Route JSONへ変換する。"""
+    if not isinstance(response_data, dict):
+        raise RoutesResponseError(
+            "駅すぱあとのレスポンスがJSONオブジェクトではありません"
+        )
+
+    result_set = response_data.get("ResultSet")
+    if not isinstance(result_set, dict):
+        raise RoutesResponseError(
+            "駅すぱあとのレスポンスにResultSetがありません"
+        )
+
+    courses = as_list(result_set.get("Course"))
+    if not courses:
+        raise RouteNotFoundError("経路が見つかりませんでした")
+
+    course = courses[0]
+    if not isinstance(course, dict):
+        raise RoutesResponseError("駅すぱあとのCourse形式が不正です")
+
+    route = course.get("Route")
+    if not isinstance(route, dict):
+        raise RoutesResponseError("駅すぱあとのRoute形式が不正です")
+
+    lines = as_list(route.get("Line"))
+    points = as_list(route.get("Point"))
+    if not lines:
+        raise RoutesResponseError("駅すぱあとの経路に区間情報がありません")
+    if len(points) != len(lines) + 1:
+        raise RoutesResponseError(
+            "駅すぱあとの経路で地点と区間の数が一致しません"
+        )
+
+    point_names = [_get_ekispert_point_name(point) for point in points]
+    point_names[0] = origin
+    point_names[-1] = destination
+
+    segments = []
+    for index, line in enumerate(lines):
+        segments.append(
+            _convert_ekispert_line(
+                line,
+                point_names[index],
+                point_names[index + 1],
+            )
+        )
+
+    departure_at = _parse_ekispert_datetime(
+        lines[0],
+        "DepartureState",
+    )
+    arrival_at = _parse_ekispert_datetime(lines[-1], "ArrivalState")
+    duration_minutes = _datetime_duration_minutes(departure_at, arrival_at)
+
+    return {
+        "origin": origin,
+        "destination": destination,
+        "departure_at": _format_app_datetime(departure_at),
+        "arrival_at": _format_app_datetime(arrival_at),
+        "duration_minutes": duration_minutes,
+        "transport_mode": (
+            "TRANSIT"
+            if any(segment["type"] == "TRANSIT" for segment in segments)
+            else "WALK"
+        ),
+        "segments": segments,
+    }
+
+
+def as_list(value):
+    """駅すぱあとJSONのobject / array差異をlistへそろえる。"""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _convert_ekispert_line(line, from_name, to_name):
+    if not isinstance(line, dict):
+        raise RoutesResponseError("駅すぱあとのLine形式が不正です")
+
+    departure_at = _parse_ekispert_datetime(line, "DepartureState")
+    arrival_at = _parse_ekispert_datetime(line, "ArrivalState")
+    line_type = line.get("Type")
+    line_name = line.get("Name")
+    is_walk = (
+        isinstance(line_type, str) and line_type.lower() == "walk"
+    ) or line_name == "徒歩"
+
+    if not is_walk and (not isinstance(line_name, str) or not line_name):
+        raise RoutesResponseError("駅すぱあとの公共交通区間に路線名がありません")
+
+    return {
+        "type": "WALK" if is_walk else "TRANSIT",
+        "from": from_name,
+        "to": to_name,
+        "departure_at": _format_app_datetime(departure_at),
+        "arrival_at": _format_app_datetime(arrival_at),
+        "duration_minutes": _datetime_duration_minutes(
+            departure_at,
+            arrival_at,
+        ),
+        "line_name": None if is_walk else line_name,
+    }
+
+
+def _get_ekispert_point_name(point):
+    if not isinstance(point, dict):
+        raise RoutesResponseError("駅すぱあとのPoint形式が不正です")
+
+    name = point.get("Name")
+    station = point.get("Station")
+    if not name and isinstance(station, dict):
+        name = station.get("Name")
+
+    if not isinstance(name, str) or not name:
+        raise RoutesResponseError("駅すぱあとのPointに地点名がありません")
+    return name
+
+
+def _parse_ekispert_datetime(line, state_name):
+    try:
+        datetime_value = line[state_name]["Datetime"]
+        if isinstance(datetime_value, dict):
+            datetime_value = datetime_value["text"]
+        parsed_datetime = datetime.fromisoformat(datetime_value)
+    except (KeyError, TypeError, ValueError) as error:
+        raise RoutesResponseError(
+            "駅すぱあとの区間に発着日時がありません"
+        ) from error
+
+    if parsed_datetime.tzinfo is None:
+        raise RoutesResponseError("駅すぱあとの発着日時にタイムゾーンがありません")
+    return parsed_datetime.astimezone(JAPAN_TIMEZONE)
+
+
+def _datetime_duration_minutes(departure_at, arrival_at):
+    duration_seconds = (arrival_at - departure_at).total_seconds()
+    if duration_seconds < 0:
+        raise RoutesResponseError("駅すぱあとの到着日時が出発日時より前です")
+    return _seconds_to_minutes(duration_seconds)
+
+
+def search_google_route(origin, destination, arrival_at, api_key=None):
     """Google Routes APIで公共交通の経路を1件検索する。"""
     google_api_key = api_key or os.getenv("GOOGLE_MAPS_API_KEY")
     if not google_api_key:
