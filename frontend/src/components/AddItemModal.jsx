@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { parseDateTime, toDateTimeInputValue } from "../dateUtils";
 import DateTimePicker from "./DateTimePicker";
+import PlaceAutocompleteInput from "./PlaceAutocompleteInput";
 
 function AddItemModal({ initialValues, onClose, onSubmit }) {
   const [itemType, setItemType] = useState(initialValues.itemType);
@@ -208,12 +209,18 @@ function AddItemModal({ initialValues, onClose, onSubmit }) {
                 <label htmlFor="event-location-name">
                   場所名 <span>任意</span>
                 </label>
-                <input
+                <PlaceAutocompleteInput
                   id="event-location-name"
-                  type="text"
                   value={locationName}
                   placeholder="例：Garraway F"
-                  onChange={(event) => setLocationName(event.target.value)}
+                  disabled={isSubmitting}
+                  onChange={setLocationName}
+                  onPlaceSelect={(place) => {
+                    if (place) {
+                      setLocationName(place.name);
+                      setDestination(place.address);
+                    }
+                  }}
                 />
               </div>
 

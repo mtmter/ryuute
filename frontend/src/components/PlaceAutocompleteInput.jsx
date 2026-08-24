@@ -72,6 +72,7 @@ function PlaceAutocompleteInput({
         autocompleteElement.disabled = disabledRef.current;
 
         function handleInput() {
+          onPlaceSelectRef.current(null);
           onChangeRef.current(autocompleteElement.value);
         }
 
@@ -158,6 +159,7 @@ function PlaceAutocompleteInput({
   }, [autoFocus, id, placeholder]);
 
   function handleFallbackChange(inputEvent) {
+    onPlaceSelect(null);
     onChange(inputEvent.target.value);
   }
 

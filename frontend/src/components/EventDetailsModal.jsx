@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { WEEKDAY_NAMES, parseDateTime } from "../dateUtils";
 import DateTimePicker from "./DateTimePicker";
+import PlaceAutocompleteInput from "./PlaceAutocompleteInput";
 import PreparationChecklist from "./PreparationChecklist";
 import RouteSearchModal from "./RouteSearchModal";
 
@@ -255,13 +256,18 @@ function EventDetailsModal({
               <label htmlFor="edit-event-location-name">
                 場所名 <span>任意</span>
               </label>
-              <input
+              <PlaceAutocompleteInput
                 id="edit-event-location-name"
-                type="text"
                 value={locationName}
-                onChange={(inputEvent) =>
-                  setLocationName(inputEvent.target.value)
-                }
+                placeholder="例：Garraway F"
+                disabled={isBusy}
+                onChange={setLocationName}
+                onPlaceSelect={(place) => {
+                  if (place) {
+                    setLocationName(place.name);
+                    setDestination(place.address);
+                  }
+                }}
               />
             </div>
 
