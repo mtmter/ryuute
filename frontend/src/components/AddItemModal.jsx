@@ -14,6 +14,7 @@ function AddItemModal({ initialValues, onClose, onSubmit }) {
   const [description, setDescription] = useState("");
   const [locationName, setLocationName] = useState("");
   const [destination, setDestination] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState(null);
   const [arrivalBufferMinutes, setArrivalBufferMinutes] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +81,9 @@ function AddItemModal({ initialValues, onClose, onSubmit }) {
           description,
           location_name: locationName.trim() || null,
           destination: destination.trim() || null,
+          destination_place_id: selectedPlace?.place_id || null,
+          destination_lat: selectedPlace?.lat ?? null,
+          destination_lng: selectedPlace?.lng ?? null,
           arrival_buffer_minutes:
             arrivalBufferMinutes === "" ? null : Number(arrivalBufferMinutes),
         });
@@ -214,8 +218,12 @@ function AddItemModal({ initialValues, onClose, onSubmit }) {
                   value={locationName}
                   placeholder="例：Garraway F"
                   disabled={isSubmitting}
-                  onChange={setLocationName}
+                  onChange={(nextLocationName) => {
+                    setLocationName(nextLocationName);
+                    setSelectedPlace(null);
+                  }}
                   onPlaceSelect={(place) => {
+                    setSelectedPlace(place);
                     if (place) {
                       setLocationName(place.name);
                       setDestination(place.address);
@@ -233,7 +241,10 @@ function AddItemModal({ initialValues, onClose, onSubmit }) {
                   type="text"
                   value={destination}
                   placeholder="住所・駅名・施設名"
-                  onChange={(event) => setDestination(event.target.value)}
+                  onChange={(event) => {
+                    setDestination(event.target.value);
+                    setSelectedPlace(null);
+                  }}
                 />
               </div>
 

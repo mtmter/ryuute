@@ -15,6 +15,59 @@ function formatEventDateTime(value) {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日（${WEEKDAY_NAMES[date.getDay()]}） ${value.slice(11, 16)}`;
 }
 
+function hasCoordinateValue(value) {
+  return value !== null && value !== undefined;
+}
+
+function getSavedPlace(event) {
+  const hasPlaceDetails =
+    Boolean(event.destination_place_id) ||
+    hasCoordinateValue(event.destination_lat) ||
+    hasCoordinateValue(event.destination_lng);
+
+  if (!hasPlaceDetails) {
+    return null;
+  }
+
+  return {
+    name: event.location_name ?? "",
+    address: event.destination ?? "",
+    place_id: event.destination_place_id ?? "",
+    lat: event.destination_lat ?? null,
+    lng: event.destination_lng ?? null,
+  };
+}
+
+function createGoogleMapsUrl(event) {
+  const hasCoordinates =
+    hasCoordinateValue(event.destination_lat) &&
+    hasCoordinateValue(event.destination_lng);
+  const coordinates = hasCoordinates
+    ? `${event.destination_lat},${event.destination_lng}`
+    : "";
+  const query = event.destination_place_id
+    ? event.location_name ||
+      coordinates ||
+      event.destination ||
+      event.destination_place_id
+    : event.destination || event.location_name || coordinates;
+
+  if (!query) {
+    return null;
+  }
+
+  const searchParameters = new URLSearchParams({
+    api: "1",
+    query,
+  });
+
+  if (event.destination_place_id) {
+    searchParameters.set("query_place_id", event.destination_place_id);
+  }
+
+  return `https://www.google.com/maps/search/?${searchParameters}`;
+}
+
 function EventDetailsModal({
   event,
   onClose,
@@ -38,6 +91,9 @@ function EventDetailsModal({
     event.location_name ?? "",
   );
   const [destination, setDestination] = useState(event.destination ?? "");
+  const [selectedPlace, setSelectedPlace] = useState(() =>
+    getSavedPlace(event),
+  );
   const [arrivalBufferMinutes, setArrivalBufferMinutes] = useState(
     event.arrival_buffer_minutes?.toString() ?? "",
   );
@@ -46,6 +102,18 @@ function EventDetailsModal({
   const [isRouteSearching, setIsRouteSearching] = useState(false);
 
   const isBusy = isSubmitting || isRouteSearching;
+  const googleMapsUrl = createGoogleMapsUrl(event);
+  const hasCoordinates =
+    hasCoordinateValue(event.destination_lat) &&
+    hasCoordinateValue(event.destination_lng);
+  const placeLabel =
+    event.location_name ||
+    event.destination ||
+    (hasCoordinates
+      ? `${event.destination_lat}, ${event.destination_lng}`
+      : event.destination_place_id
+        ? "Google Mapsで場所を表示"
+        : "未設定");
 
   useEffect(() => {
     function handleKeyDown(keyEvent) {
@@ -75,6 +143,7 @@ function EventDetailsModal({
     setDescription(event.description ?? "");
     setLocationName(event.location_name ?? "");
     setDestination(event.destination ?? "");
+    setSelectedPlace(getSavedPlace(event));
     setArrivalBufferMinutes(
       event.arrival_buffer_minutes?.toString() ?? "",
     );
@@ -128,6 +197,9 @@ function EventDetailsModal({
         description,
         location_name: locationName.trim() || null,
         destination: destination.trim() || null,
+        destination_place_id: selectedPlace?.place_id || null,
+        destination_lat: selectedPlace?.lat ?? null,
+        destination_lng: selectedPlace?.lng ?? null,
         arrival_buffer_minutes:
           arrivalBufferMinutes === "" ? null : Number(arrivalBufferMinutes),
       });
@@ -261,8 +333,12 @@ function EventDetailsModal({
                 value={locationName}
                 placeholder="例：Garraway F"
                 disabled={isBusy}
-                onChange={setLocationName}
+                onChange={(nextLocationName) => {
+                  setLocationName(nextLocationName);
+                  setSelectedPlace(null);
+                }}
                 onPlaceSelect={(place) => {
+                  setSelectedPlace(place);
                   if (place) {
                     setLocationName(place.name);
                     setDestination(place.address);
@@ -279,9 +355,10 @@ function EventDetailsModal({
                 id="edit-event-destination"
                 type="text"
                 value={destination}
-                onChange={(inputEvent) =>
-                  setDestination(inputEvent.target.value)
-                }
+                onChange={(inputEvent) => {
+                  setDestination(inputEvent.target.value);
+                  setSelectedPlace(null);
+                }}
               />
             </div>
 
@@ -382,12 +459,28 @@ function EventDetailsModal({
                 </dd>
               </div>
               <div>
-                <dt>場所名</dt>
-                <dd>{event.location_name || "未設定"}</dd>
-              </div>
-              <div>
-                <dt>目的地</dt>
-                <dd>{event.destination || "未設定"}</dd>
+                <dt>場所</dt>
+                <dd className="event-place-detail">
+                  {googleMapsUrl ? (
+                    <a
+                      className="event-place-link"
+                      href={googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${placeLabel}をGoogle Mapsで開く（新しいタブ）`}
+                    >
+                      {placeLabel} <span aria-hidden="true">↗</span>
+                    </a>
+                  ) : (
+                    placeLabel
+                  )}
+                  {event.destination &&
+                    event.destination !== placeLabel && (
+                      <span className="event-place-address">
+                        {event.destination}
+                      </span>
+                    )}
+                </dd>
               </div>
               <div>
                 <dt>到着余裕時間</dt>
