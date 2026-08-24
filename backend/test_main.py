@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -264,6 +264,60 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
         self.assertEqual(route["destination"], "Garraway F")
         self.assertEqual(route["arrival_at"], "2026-08-25T10:12")
         self.assertIsNone(database.get_travel_plan(mock_event["id"]))
+
+    def test_route_search_works_with_ekispert_provider(self):
+        ekispert_event = database.create_event(
+            "ハッカソン",
+            "2026-08-25T10:22",
+            "2026-08-25T18:00",
+            location_name="Garraway F",
+            destination_lat=33.586,
+            destination_lng=130.398,
+            arrival_buffer_minutes=10,
+        )
+        fixture_path = (
+            Path(__file__).parent
+            / "fixtures"
+            / "ekispert_route_demo.json"
+        )
+        provider_response = Mock()
+        provider_response.is_success = True
+        provider_response.status_code = 200
+        provider_response.json.return_value = json.loads(
+            fixture_path.read_text(encoding="utf-8")
+        )
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "EKISPERT_API_KEY": "test-api-key",
+                    "ROUTE_PROVIDER": "ekispert",
+                },
+                clear=True,
+            ),
+            patch(
+                "route_providers.ekispert_provider.httpx.get",
+                return_value=provider_response,
+            ) as mock_get,
+        ):
+            response = self.client.post(
+                f"/api/events/{ekispert_event['id']}/route-search",
+                json={
+                    "origin_name": "九州大学 伊都キャンパス",
+                    "origin_lat": 33.596,
+                    "origin_lng": 130.215,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        route = response.json()
+        self.assertEqual(route["origin"], "九州大学 伊都キャンパス")
+        self.assertEqual(route["destination"], "Garraway F")
+        self.assertEqual(route["arrival_at"], "2026-08-25T10:12")
+        self.assertEqual(route["transport_mode"], "TRANSIT")
+        mock_get.assert_called_once()
+        self.assertIsNone(database.get_travel_plan(ekispert_event["id"]))
 
     def test_route_search_validates_event_origin_and_destination(self):
         missing_event_response = self.client.post(
