@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import AddItemModal from "./components/AddItemModal";
 import CalendarToolbar from "./components/CalendarToolbar";
+import DayCalendar from "./components/DayCalendar";
 import EventDetailsModal from "./components/EventDetailsModal";
 import MiniCalendar from "./components/MiniCalendar";
 import MonthCalendar from "./components/MonthCalendar";
@@ -12,6 +13,7 @@ import WeekCalendar from "./components/WeekCalendar";
 import {
   addDays,
   addMonths,
+  formatDayTitle,
   formatMonthTitle,
   formatWeekTitle,
   getWeekDates,
@@ -384,6 +386,11 @@ function App() {
       return;
     }
 
+    if (activeView === "day") {
+      setAddModalValues(createInitialValues(selectedDate, "event"));
+      return;
+    }
+
     const weekDates = getWeekDates(selectedDate);
     const targetDate = weekDates.some((date) => isSameDay(date, today))
       ? today
@@ -613,6 +620,17 @@ function App() {
                 handleCalendarDateChange(addDays(selectedDate, 7))
               }
             />
+          ) : activeView === "day" ? (
+            <CalendarToolbar
+              title={formatDayTitle(selectedDate)}
+              onPrevious={() =>
+                handleCalendarDateChange(addDays(selectedDate, -1))
+              }
+              onToday={() => handleCalendarDateChange(new Date())}
+              onNext={() =>
+                handleCalendarDateChange(addDays(selectedDate, 1))
+              }
+            />
           ) : null}
         </div>
 
@@ -649,6 +667,13 @@ function App() {
               }}
             >
               週
+            </button>
+            <button
+              className={activeView === "day" ? "is-active" : ""}
+              type="button"
+              onClick={() => setActiveView("day")}
+            >
+              日
             </button>
             <button
               className={activeView === "tasks" ? "is-active" : ""}
@@ -730,8 +755,16 @@ function App() {
                   onDateClick={handleMonthDateClick}
                   onEventClick={setSelectedEvent}
                 />
-              ) : (
+              ) : activeView === "week" ? (
                 <WeekCalendar
+                  events={events}
+                  tasks={tasks}
+                  selectedDate={selectedDate}
+                  onEventClick={setSelectedEvent}
+                  onTimeClick={handleWeekTimeClick}
+                />
+              ) : (
+                <DayCalendar
                   events={events}
                   tasks={tasks}
                   selectedDate={selectedDate}

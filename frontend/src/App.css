@@ -461,11 +461,21 @@
   min-width: 980px;
 }
 
+.day-calendar {
+  min-width: 360px;
+}
+
 .week-header-row,
 .week-due-row,
 .week-time-grid {
   display: grid;
   grid-template-columns: 64px repeat(7, minmax(0, 1fr));
+}
+
+.day-header-row,
+.day-due-row,
+.day-time-grid {
+  grid-template-columns: 64px minmax(0, 1fr);
 }
 
 .week-header-row {
@@ -1857,6 +1867,12 @@
   }
 
   .calendar-view-active .week-calendar {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+  }
+
+  .calendar-view-active .day-calendar {
     display: flex;
     height: 100%;
     flex-direction: column;
