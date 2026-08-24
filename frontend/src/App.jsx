@@ -3,6 +3,7 @@ import "./App.css";
 import AddItemModal from "./components/AddItemModal";
 import CalendarToolbar from "./components/CalendarToolbar";
 import EventDetailsModal from "./components/EventDetailsModal";
+import MiniCalendar from "./components/MiniCalendar";
 import MonthCalendar from "./components/MonthCalendar";
 import PreparationReminderList from "./components/PreparationReminderList";
 import PreparationReminderSettingsModal from "./components/PreparationReminderSettingsModal";
@@ -211,7 +212,11 @@ async function getResponseError(response, defaultMessage) {
 
 function App() {
   const [activeView, setActiveView] = useState("month");
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [miniCalendarMonth, setMiniCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
   const [events, setEvents] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [preparations, setPreparations] = useState(null);
@@ -296,6 +301,13 @@ function App() {
   function handlePreparationReminderMinutesChange(minutes) {
     setPreparationReminderMinutes(minutes);
     setCurrentTime(new Date());
+  }
+
+  function handleCalendarDateChange(date) {
+    setSelectedDate(date);
+    setMiniCalendarMonth(
+      new Date(date.getFullYear(), date.getMonth(), 1),
+    );
   }
 
   async function handleRetry() {
@@ -582,16 +594,24 @@ function App() {
           {activeView === "month" ? (
             <CalendarToolbar
               title={formatMonthTitle(selectedDate)}
-              onPrevious={() => setSelectedDate(addMonths(selectedDate, -1))}
-              onToday={() => setSelectedDate(new Date())}
-              onNext={() => setSelectedDate(addMonths(selectedDate, 1))}
+              onPrevious={() =>
+                handleCalendarDateChange(addMonths(selectedDate, -1))
+              }
+              onToday={() => handleCalendarDateChange(new Date())}
+              onNext={() =>
+                handleCalendarDateChange(addMonths(selectedDate, 1))
+              }
             />
           ) : activeView === "week" ? (
             <CalendarToolbar
               title={formatWeekTitle(getWeekDates(selectedDate))}
-              onPrevious={() => setSelectedDate(addDays(selectedDate, -7))}
-              onToday={() => setSelectedDate(new Date())}
-              onNext={() => setSelectedDate(addDays(selectedDate, 7))}
+              onPrevious={() =>
+                handleCalendarDateChange(addDays(selectedDate, -7))
+              }
+              onToday={() => handleCalendarDateChange(new Date())}
+              onNext={() =>
+                handleCalendarDateChange(addDays(selectedDate, 7))
+              }
             />
           ) : null}
         </div>
@@ -615,7 +635,7 @@ function App() {
                     selectedDate.getFullYear() === today.getFullYear() &&
                     selectedDate.getMonth() === today.getMonth();
 
-                  setSelectedDate(
+                  handleCalendarDateChange(
                     isCurrentMonth
                       ? today
                       : new Date(
@@ -666,37 +686,61 @@ function App() {
       )}
 
       {!isLoading && (
-        <PreparationReminderList
-          reminders={preparationReminders}
-          onEventClick={setSelectedEvent}
-        />
+        <div className="top-preparation-reminders">
+          <PreparationReminderList
+            reminders={preparationReminders}
+            onEventClick={setSelectedEvent}
+          />
+        </div>
       )}
 
       <main className="app-content">
         {isLoading ? (
           <p className="status-message">読み込み中...</p>
-        ) : activeView === "month" ? (
-          <MonthCalendar
-            events={events}
-            tasks={tasks}
-            selectedDate={selectedDate}
-            onDateClick={handleMonthDateClick}
-            onEventClick={setSelectedEvent}
-          />
-        ) : activeView === "week" ? (
-          <WeekCalendar
-            events={events}
-            tasks={tasks}
-            selectedDate={selectedDate}
-            onEventClick={setSelectedEvent}
-            onTimeClick={handleWeekTimeClick}
-          />
-        ) : (
+        ) : activeView === "tasks" ? (
           <TaskList
             tasks={tasks}
             updatingTaskId={updatingTaskId}
             onTaskToggle={handleTaskToggle}
           />
+        ) : (
+          <div className="calendar-page-layout">
+            <aside className="calendar-sidebar" aria-label="日付と準備案内">
+              <MiniCalendar
+                activeView={activeView}
+                displayedMonth={miniCalendarMonth}
+                selectedDate={selectedDate}
+                onDateSelect={handleCalendarDateChange}
+                onDisplayedMonthChange={setMiniCalendarMonth}
+              />
+              <div className="sidebar-preparation-reminders">
+                <PreparationReminderList
+                  reminders={preparationReminders}
+                  onEventClick={setSelectedEvent}
+                />
+              </div>
+            </aside>
+
+            <div className="calendar-main-panel">
+              {activeView === "month" ? (
+                <MonthCalendar
+                  events={events}
+                  tasks={tasks}
+                  selectedDate={selectedDate}
+                  onDateClick={handleMonthDateClick}
+                  onEventClick={setSelectedEvent}
+                />
+              ) : (
+                <WeekCalendar
+                  events={events}
+                  tasks={tasks}
+                  selectedDate={selectedDate}
+                  onEventClick={setSelectedEvent}
+                  onTimeClick={handleWeekTimeClick}
+                />
+              )}
+            </div>
+          </div>
         )}
       </main>
 

@@ -134,6 +134,128 @@
   padding: 28px 0 40px;
 }
 
+.calendar-main-panel {
+  min-width: 0;
+}
+
+.mini-calendar {
+  flex: 0 0 auto;
+  padding: 14px;
+  border: 1px solid #d9e0e9;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgb(46 61 91 / 5%);
+}
+
+.mini-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.mini-calendar-header h2 {
+  margin: 0;
+  color: #303c51;
+  font-size: 0.9rem;
+}
+
+.mini-calendar-header > div {
+  display: flex;
+  gap: 2px;
+}
+
+.mini-calendar-header button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #526078;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.mini-calendar-header button:hover,
+.mini-calendar-days button:hover:not(.is-selected) {
+  background: #eef2f8;
+}
+
+.mini-calendar-weekdays,
+.mini-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mini-calendar-weekdays span {
+  padding: 4px 0 6px;
+  color: #7c8697;
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.mini-calendar-weekdays .is-sunday {
+  color: #c64b58;
+}
+
+.mini-calendar-weekdays .is-saturday {
+  color: #3869c8;
+}
+
+.mini-calendar-days {
+  row-gap: 2px;
+}
+
+.mini-calendar-days button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-self: center;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #374258;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.mini-calendar-days button.is-outside-month {
+  color: #a2a9b5;
+}
+
+.mini-calendar-days button.is-visible-week {
+  border-radius: 8px;
+  color: #315ab7;
+  background: #e9f0ff;
+}
+
+.mini-calendar-days button.is-today {
+  box-shadow: inset 0 0 0 1px #2d5dcc;
+  color: #244fae;
+  font-weight: 700;
+}
+
+.mini-calendar-days button.is-selected {
+  border-radius: 50%;
+  color: #ffffff;
+  background: #2d5dcc;
+  font-weight: 700;
+}
+
+.mini-calendar-days button.is-selected.is-today {
+  box-shadow:
+    inset 0 0 0 2px #ffffff,
+    0 0 0 1px #2d5dcc;
+}
+
 .calendar-toolbar {
   display: flex;
   align-items: center;
@@ -1643,9 +1765,12 @@
   }
 
   .calendar-view-active .app-header,
-  .calendar-view-active .error-message,
-  .calendar-view-active .preparation-reminders {
+  .calendar-view-active .error-message {
     flex: 0 0 auto;
+  }
+
+  .calendar-view-active .top-preparation-reminders {
+    display: none;
   }
 
   .calendar-view-active .app-content {
@@ -1655,7 +1780,55 @@
     padding-bottom: 20px;
   }
 
-  .calendar-view-active .app-content > section {
+  .calendar-page-layout {
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .calendar-sidebar {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sidebar-preparation-reminders {
+    min-height: 0;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-gutter: stable;
+  }
+
+  .calendar-sidebar .preparation-reminders {
+    width: 100%;
+    margin: 0;
+    padding: 13px;
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  .calendar-sidebar .preparation-reminder-heading {
+    justify-content: space-between;
+    padding-right: 0;
+  }
+
+  .calendar-sidebar .preparation-reminder-list {
+    max-height: none;
+    overflow: visible;
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-main-panel {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .calendar-main-panel > section {
     display: flex;
     height: 100%;
     min-height: 0;
@@ -1757,6 +1930,10 @@
   .app-content {
     width: calc(100% - 24px);
     padding-top: 20px;
+  }
+
+  .calendar-sidebar {
+    display: none;
   }
 
   .calendar-toolbar {
