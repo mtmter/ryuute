@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { WEEKDAY_NAMES, parseDateTime } from "../dateUtils";
+import PlaceAutocompleteInput from "./PlaceAutocompleteInput";
 import RouteSearchResult from "./RouteSearchResult";
 
 function formatDesiredArrival(event) {
@@ -29,6 +30,7 @@ function RouteSearchModal({
   onSearchSuccess,
 }) {
   const [origin, setOrigin] = useState("");
+  const [originPlace, setOriginPlace] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [routeResult, setRouteResult] = useState(initialRouteResult);
@@ -52,7 +54,16 @@ function RouteSearchModal({
     setRouteResult(null);
 
     try {
-      const result = await onSearch(event.id, trimmedOrigin);
+      const originRequest = originPlace
+        ? {
+            origin_name: originPlace.name || trimmedOrigin,
+            origin_address: originPlace.address || null,
+            origin_place_id: originPlace.place_id || null,
+            origin_lat: originPlace.lat,
+            origin_lng: originPlace.lng,
+          }
+        : { origin_name: trimmedOrigin };
+      const result = await onSearch(event.id, originRequest);
       setRouteResult(result);
       onSearchSuccess?.(result);
     } catch (searchError) {
@@ -70,6 +81,7 @@ function RouteSearchModal({
         onRegister={onRegister}
         onRetry={() => {
           setOrigin("");
+          setOriginPlace(null);
           setRouteResult(null);
         }}
       />
@@ -80,25 +92,26 @@ function RouteSearchModal({
     <form className="route-search-form" onSubmit={handleSubmit}>
       <div className="modal-form-field">
         <label htmlFor="route-search-origin">出発地</label>
-        <input
+        <PlaceAutocompleteInput
           id="route-search-origin"
-          type="text"
           value={origin}
           placeholder="例：九州大学 伊都キャンパス"
           autoFocus
           disabled={isSearching}
-          onChange={(inputEvent) => {
-            setOrigin(inputEvent.target.value);
+          onChange={(nextOrigin) => {
+            setOrigin(nextOrigin);
+            setOriginPlace(null);
             setErrorMessage("");
             setRouteResult(null);
           }}
+          onPlaceSelect={setOriginPlace}
         />
       </div>
 
       <dl className="route-search-summary">
         <div>
           <dt>目的地</dt>
-          <dd>{event.destination}</dd>
+          <dd>{event.location_name || event.destination || "未設定"}</dd>
         </div>
         <div>
           <dt>到着希望時刻</dt>
