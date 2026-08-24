@@ -153,6 +153,10 @@ export function formatWeekTitle(weekDates) {
   return `${firstDate.getFullYear()}年${firstDate.getMonth() + 1}月${firstDate.getDate()}日 – ${lastDate.getDate()}日`;
 }
 
+export function formatDayTitle(date) {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日（${WEEKDAY_NAMES[date.getDay()]}）`;
+}
+
 export function formatTaskDue(value) {
   const date = parseDateTime(value);
 
