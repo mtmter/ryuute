@@ -262,8 +262,34 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
         route = response.json()
         self.assertEqual(route["origin"], "九州大学 伊都キャンパス")
         self.assertEqual(route["destination"], "Garraway F")
-        self.assertEqual(route["arrival_at"], "2026-08-25T10:12")
+        self.assertEqual(route["arrival_at"], "2026-08-25T09:57")
         self.assertIsNone(database.get_travel_plan(mock_event["id"]))
+
+    def test_mock_route_search_applies_event_arrival_buffer(self):
+        mock_event = database.create_event(
+            "朝の予定",
+            "2026-08-26T09:30",
+            "2026-08-26T10:30",
+            location_name="Garraway F",
+            destination_lat=33.586,
+            destination_lng=130.398,
+            arrival_buffer_minutes=15,
+        )
+
+        with patch.dict(os.environ, {"ROUTE_PROVIDER": "mock"}, clear=True):
+            response = self.client.post(
+                f"/api/events/{mock_event['id']}/route-search",
+                json={
+                    "origin_name": "九州大学 伊都キャンパス",
+                    "origin_lat": 33.596,
+                    "origin_lng": 130.215,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        route = response.json()
+        self.assertEqual(route["arrival_at"], "2026-08-26T09:00")
+        self.assertEqual(route["departure_at"], "2026-08-26T07:57")
 
     def test_route_search_works_with_ekispert_provider(self):
         ekispert_event = database.create_event(
@@ -314,7 +340,7 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
         route = response.json()
         self.assertEqual(route["origin"], "九州大学 伊都キャンパス")
         self.assertEqual(route["destination"], "Garraway F")
-        self.assertEqual(route["arrival_at"], "2026-08-25T10:12")
+        self.assertEqual(route["arrival_at"], "2026-08-25T09:57")
         self.assertEqual(route["transport_mode"], "TRANSIT")
         mock_get.assert_called_once()
         self.assertIsNone(database.get_travel_plan(ekispert_event["id"]))

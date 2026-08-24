@@ -505,6 +505,52 @@ backend/fixtures/ekispert_route_demo.json
 目的地: Garraway F
 ```
 
+fixtureは、次の日時を到着希望日時とする駅すぱあと形式レスポンスを
+基準にしています。現在のfixtureは実APIから採取したものではなく、
+アプリが利用するレスポンス構造を再現したデモデータです。
+
+```text
+2026-08-25T10:12:00+09:00
+```
+
+基準経路は、2026年8月25日（火）に適用される次の公開情報から作成しています。
+
+- [昭和バス 九州大学線・夏休みダイヤ（平日）](https://www.showa-bus.jp/wp-content/uploads/2026/07/3_14kyudai_summervacacion_20260810.pdf)
+- [JR九州 九大学研都市駅時刻表](https://www.jrkyushu-timetable.jp/cgi-bin/jr-k_time/tt_dep.cgi?c=29551)
+- [JR九州 九大学研都市9:24発・福岡空港行の列車詳細](https://www.jrkyushu-timetable.jp/jr-k_time/2608/0002/00027101.html?c=29551&ym=202608&d=25)
+- [JR九州 九大学研都市9:40発・福岡空港行の列車詳細](https://www.jrkyushu-timetable.jp/jr-k_time/2608/0030/00308301.html?c=29551&ym=202608&d=25)
+- [Garraway F 公式アクセス](https://garrawayf.com/)
+
+出発座標 `33.596,130.215` から九大工学部バス停までを徒歩2分、
+Garraway F公式案内に従って地下鉄天神駅から目的地までを徒歩8分とします。
+九大工学部8:56発の昭和バス九州大学線2Mで九大学研都市駅へ9:16に到着し、
+9:24発のJR筑肥線・地下鉄空港線直通列車へ乗り換え、天神へ9:49に
+到着します。目的地への到着は9:57で、到着希望時刻より15分早い計画です。
+
+次の直通列車は九大学研都市9:40発、天神10:05着のため、徒歩8分を加えると
+10:13着になります。10:12の到着希望時刻を過ぎるため、基準経路では
+9:24発の列車を採用しています。
+
+Mock Providerは検索時に渡された到着希望日時と基準日時の差を計算し、
+fixture内のすべての `Datetime.text` を同じ差分だけ移動してから返します。
+これにより、区間ごとの所要時間、乗り換え待ち時間、到着希望時刻より
+早く到着する余裕を保ったまま、予定の日付と到着余裕時間を反映します。
+
+```text
+検索時の到着希望日時 - fixtureの基準到着希望日時
+                         ↓
+             fixture内の全発着日時へ加算
+```
+
+fixtureを別の実APIレスポンスへ差し替える場合は、
+`backend/route_providers/mock_provider.py` の
+`FIXTURE_DESIRED_ARRIVAL_AT` も、そのレスポンスを取得したときの
+`date` / `time` に合わせてください。
+
+この日時移動はデモで到着余裕時間を再現するためのものです。
+異なる時刻の実際の運行便を再探索するものではないため、複数のダイヤを
+厳密に再現する場合は、実APIから条件ごとのfixtureを用意します。
+
 駅すぱあとのJSONでは、要素数によって同じキーが単一オブジェクトまたは配列になる場合があるため、変換処理側で正規化して扱います。
 
 ```python
@@ -524,36 +570,45 @@ def as_list(value):
 {
   "origin": "九州大学 伊都キャンパス",
   "destination": "Garraway F",
-  "departure_at": "2026-08-25T08:59",
-  "arrival_at": "2026-08-25T10:12",
-  "duration_minutes": 73,
+  "departure_at": "2026-08-25T08:54",
+  "arrival_at": "2026-08-25T09:57",
+  "duration_minutes": 63,
   "transport_mode": "TRANSIT",
   "segments": [
     {
       "type": "WALK",
       "from": "九州大学 伊都キャンパス",
-      "to": "九大学研都市",
-      "departure_at": "2026-08-25T08:59",
-      "arrival_at": "2026-08-25T09:14",
-      "duration_minutes": 15,
+      "to": "九大工学部",
+      "departure_at": "2026-08-25T08:54",
+      "arrival_at": "2026-08-25T08:56",
+      "duration_minutes": 2,
       "line_name": null
+    },
+    {
+      "type": "TRANSIT",
+      "from": "九大工学部",
+      "to": "九大学研都市",
+      "departure_at": "2026-08-25T08:56",
+      "arrival_at": "2026-08-25T09:16",
+      "duration_minutes": 20,
+      "line_name": "昭和バス・九州大学線 2M（九大学研都市駅行）"
     },
     {
       "type": "TRANSIT",
       "from": "九大学研都市",
       "to": "天神",
-      "departure_at": "2026-08-25T09:20",
-      "arrival_at": "2026-08-25T10:02",
-      "duration_minutes": 42,
-      "line_name": "JR筑肥線・福岡市地下鉄空港線"
+      "departure_at": "2026-08-25T09:24",
+      "arrival_at": "2026-08-25T09:49",
+      "duration_minutes": 25,
+      "line_name": "JR筑肥線・福岡市地下鉄空港線（福岡空港行）"
     },
     {
       "type": "WALK",
       "from": "天神",
       "to": "Garraway F",
-      "departure_at": "2026-08-25T10:02",
-      "arrival_at": "2026-08-25T10:12",
-      "duration_minutes": 10,
+      "departure_at": "2026-08-25T09:49",
+      "arrival_at": "2026-08-25T09:57",
+      "duration_minutes": 8,
       "line_name": null
     }
   ]
@@ -569,21 +624,26 @@ def as_list(value):
 MVPでは1つの経路を縦型で表示します。
 
 ```text
-08:59                  10:12
-出発          73分       到着
+08:54                  09:57
+出発          63分       到着
 
 九州大学 伊都キャンパス
 │
-│ 徒歩 15分
+│ 徒歩 2分
+│
+九大工学部
+│
+│ 昭和バス・九州大学線 2M
+│ 08:56 -> 09:16
 │
 九大学研都市
 │
 │ JR筑肥線・福岡市地下鉄空港線
-│ 09:20 -> 10:02
+│ 09:24 -> 09:49
 │
 天神
 │
-│ 徒歩 10分
+│ 徒歩 8分
 │
 Garraway F
 

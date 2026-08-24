@@ -6,58 +6,84 @@
       "searchType": "arrival",
       "dataType": "onTimetable",
       "Route": {
-        "timeOther": "6",
-        "timeOnBoard": "42",
-        "timeWalk": "25",
-        "transferCount": "0",
+        "timeOther": "8",
+        "timeOnBoard": "45",
+        "timeWalk": "10",
+        "transferCount": "1",
         "Line": [
           {
-            "timeOnBoard": "15",
+            "timeOnBoard": "2",
             "Name": "徒歩",
             "Type": "walk",
+            "TimeReliability": "average",
             "DepartureState": {
               "Datetime": {
-                "text": "2026-08-25T08:59:00+09:00",
+                "text": "2026-08-25T08:54:00+09:00",
                 "operation": "today"
               }
             },
             "ArrivalState": {
               "Datetime": {
-                "text": "2026-08-25T09:14:00+09:00",
+                "text": "2026-08-25T08:56:00+09:00",
                 "operation": "today"
               }
             }
           },
           {
-            "timeOnBoard": "42",
-            "Name": "JR筑肥線・福岡市地下鉄空港線",
+            "timeOnBoard": "20",
+            "Name": "昭和バス・九州大学線 2M（九大学研都市駅行）",
+            "Type": "bus",
+            "Destination": "九大学研都市駅",
+            "TimeReliability": "onTimetable",
+            "Corporation": {
+              "Name": "昭和自動車"
+            },
+            "DepartureState": {
+              "Datetime": {
+                "text": "2026-08-25T08:56:00+09:00",
+                "operation": "today"
+              }
+            },
+            "ArrivalState": {
+              "Datetime": {
+                "text": "2026-08-25T09:16:00+09:00",
+                "operation": "today"
+              }
+            }
+          },
+          {
+            "timeOnBoard": "25",
+            "Name": "JR筑肥線・福岡市地下鉄空港線（福岡空港行）",
             "Type": "train",
+            "Destination": "福岡空港",
+            "TimeReliability": "onTimetable",
             "DepartureState": {
               "Datetime": {
-                "text": "2026-08-25T09:20:00+09:00",
+                "text": "2026-08-25T09:24:00+09:00",
                 "operation": "today"
               }
             },
             "ArrivalState": {
               "Datetime": {
-                "text": "2026-08-25T10:02:00+09:00",
+                "text": "2026-08-25T09:49:00+09:00",
                 "operation": "today"
               }
             }
           },
           {
-            "timeOnBoard": "10",
+            "timeOnBoard": "8",
             "Name": "徒歩",
             "Type": "walk",
+            "TimeReliability": "average",
             "DepartureState": {
               "Datetime": {
-                "text": "2026-08-25T10:02:00+09:00",
+                "text": "2026-08-25T09:49:00+09:00",
                 "operation": "today"
               }
             },
             "ArrivalState": {
               "Datetime": {
-                "text": "2026-08-25T10:12:00+09:00",
+                "text": "2026-08-25T09:57:00+09:00",
                 "operation": "today"
               }
             }
@@ -66,6 +92,13 @@
         "Point": [
           {
             "Name": "九州大学 伊都キャンパス"
+          },
+          {
+            "Station": {
+              "code": "demo-kyudai-engineering",
+              "Name": "九大工学部",
+              "Type": "bus"
+            }
           },
           {
             "Station": {

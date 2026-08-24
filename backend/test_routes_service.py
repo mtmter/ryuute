@@ -85,17 +85,43 @@ class EkispertRoutesServiceTest(unittest.TestCase):
 
         self.assertEqual(result["origin"], "九州大学 伊都キャンパス")
         self.assertEqual(result["destination"], "Garraway F")
-        self.assertEqual(result["departure_at"], "2026-08-25T08:59")
-        self.assertEqual(result["arrival_at"], "2026-08-25T10:12")
-        self.assertEqual(result["duration_minutes"], 73)
+        self.assertEqual(result["departure_at"], "2026-08-25T08:54")
+        self.assertEqual(result["arrival_at"], "2026-08-25T09:57")
+        self.assertEqual(result["duration_minutes"], 63)
         self.assertEqual(result["transport_mode"], "TRANSIT")
         self.assertEqual(
             [segment["type"] for segment in result["segments"]],
-            ["WALK", "TRANSIT", "WALK"],
+            ["WALK", "TRANSIT", "TRANSIT", "WALK"],
         )
         self.assertEqual(
             result["segments"][1]["line_name"],
-            "JR筑肥線・福岡市地下鉄空港線",
+            "昭和バス・九州大学線 2M（九大学研都市駅行）",
+        )
+        self.assertEqual(
+            result["segments"][2]["line_name"],
+            "JR筑肥線・福岡市地下鉄空港線（福岡空港行）",
+        )
+
+    def test_mock_route_moves_all_times_to_requested_arrival(self):
+        result = routes_service.search_route(
+            "33.596,130.215",
+            "33.586,130.398",
+            datetime(2026, 8, 26, 9, 40),
+            provider_name="mock",
+            origin_display_name="九州大学 伊都キャンパス",
+            destination_display_name="Garraway F",
+        )
+
+        self.assertEqual(result["departure_at"], "2026-08-26T08:22")
+        self.assertEqual(result["arrival_at"], "2026-08-26T09:25")
+        self.assertEqual(result["duration_minutes"], 63)
+        self.assertEqual(
+            result["segments"][0]["arrival_at"],
+            "2026-08-26T08:24",
+        )
+        self.assertEqual(
+            result["segments"][2]["departure_at"],
+            "2026-08-26T08:52",
         )
 
     def test_convert_ekispert_route_accepts_object_and_array_values(self):
@@ -305,7 +331,7 @@ class EkispertRoutesServiceTest(unittest.TestCase):
 
         self.assertEqual(result["origin"], "九州大学 伊都キャンパス")
         self.assertEqual(result["destination"], "Garraway F")
-        self.assertEqual(result["arrival_at"], "2026-08-25T10:12")
+        self.assertEqual(result["arrival_at"], "2026-08-25T09:57")
         self.assertEqual(result["transport_mode"], "TRANSIT")
 
 
