@@ -8,6 +8,7 @@ import MiniCalendar from "./components/MiniCalendar";
 import MonthCalendar from "./components/MonthCalendar";
 import PreparationReminderList from "./components/PreparationReminderList";
 import PreparationReminderSettingsModal from "./components/PreparationReminderSettingsModal";
+import TaskDetailsModal from "./components/TaskDetailsModal";
 import TaskList from "./components/TaskList";
 import WeekCalendar from "./components/WeekCalendar";
 import {
@@ -277,6 +278,7 @@ function App() {
   const [updatingTaskId, setUpdatingTaskId] = useState(null);
   const [addModalValues, setAddModalValues] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [routeSearchResult, setRouteSearchResult] = useState(null);
   const [isReminderSettingsOpen, setIsReminderSettingsOpen] = useState(false);
   const [preparationReminderMinutes, setPreparationReminderMinutes] = useState(
@@ -414,6 +416,57 @@ function App() {
     } finally {
       setUpdatingTaskId(null);
     }
+  }
+
+  async function handleUpdateTask(taskId, taskData) {
+    let response;
+
+    try {
+      response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+      });
+    } catch {
+      throw new Error("タスク更新の通信に失敗しました");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        await getResponseError(response, "タスクを更新できませんでした"),
+      );
+    }
+
+    const updatedTask = await response.json();
+    setTasks((currentTasks) =>
+      currentTasks.map((currentTask) =>
+        currentTask.id === updatedTask.id ? updatedTask : currentTask,
+      ),
+    );
+    setSelectedTask(updatedTask);
+  }
+
+  async function handleDeleteTask(taskId) {
+    let response;
+
+    try {
+      response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+    } catch {
+      throw new Error("タスク削除の通信に失敗しました");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        await getResponseError(response, "タスクを削除できませんでした"),
+      );
+    }
+
+    setTasks((currentTasks) =>
+      currentTasks.filter((currentTask) => currentTask.id !== taskId),
+    );
+    setSelectedTask(null);
   }
 
   function handleAddButtonClick() {
@@ -781,6 +834,7 @@ function App() {
           <TaskList
             tasks={tasks}
             updatingTaskId={updatingTaskId}
+            onTaskSelect={setSelectedTask}
             onTaskToggle={handleTaskToggle}
           />
         ) : (
@@ -809,6 +863,7 @@ function App() {
                   selectedDate={selectedDate}
                   onDateClick={handleMonthDateClick}
                   onEventClick={setSelectedEvent}
+                  onTaskClick={setSelectedTask}
                 />
               ) : activeView === "week" ? (
                 <WeekCalendar
@@ -816,6 +871,7 @@ function App() {
                   tasks={tasks}
                   selectedDate={selectedDate}
                   onEventClick={setSelectedEvent}
+                  onTaskClick={setSelectedTask}
                   onTimeClick={handleWeekTimeClick}
                 />
               ) : (
@@ -824,6 +880,7 @@ function App() {
                   tasks={tasks}
                   selectedDate={selectedDate}
                   onEventClick={setSelectedEvent}
+                  onTaskClick={setSelectedTask}
                   onTimeClick={handleWeekTimeClick}
                 />
               )}
@@ -871,6 +928,16 @@ function App() {
             ) ?? null
           }
           routeSearchResult={routeSearchResult}
+        />
+      )}
+
+      {selectedTask && (
+        <TaskDetailsModal
+          key={selectedTask.id}
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onDelete={handleDeleteTask}
+          onUpdate={handleUpdateTask}
         />
       )}
     </div>

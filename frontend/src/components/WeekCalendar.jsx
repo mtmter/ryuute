@@ -25,6 +25,7 @@ function WeekCalendar({
   tasks,
   selectedDate,
   onEventClick,
+  onTaskClick,
   onTimeClick,
 }) {
   const weekDates = getWeekDates(selectedDate);
@@ -75,7 +76,23 @@ function WeekCalendar({
               return (
                 <div className="week-due-cell" key={getDateKey(date)}>
                   {dateTasks.map((task) => (
-                    <div className="week-task" title={task.title} key={task.id}>
+                    <div
+                      className="week-task"
+                      title={task.title}
+                      key={task.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onTaskClick(task)}
+                      onKeyDown={(keyEvent) => {
+                        if (
+                          keyEvent.key === "Enter" ||
+                          keyEvent.key === " "
+                        ) {
+                          keyEvent.preventDefault();
+                          onTaskClick(task);
+                        }
+                      }}
+                    >
                       {formatTime(task.due_at)} {task.title}
                     </div>
                   ))}
