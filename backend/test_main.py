@@ -46,6 +46,85 @@ SAMPLE_ROUTE = {
 }
 
 
+class EventApiTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        database_path = Path(self.temporary_directory.name) / "test_schedule.db"
+        self.database_path_patch = patch.object(
+            database,
+            "DATABASE_PATH",
+            database_path,
+        )
+        self.database_path_patch.start()
+
+        self.client_context = TestClient(main.app)
+        self.client = self.client_context.__enter__()
+
+    def tearDown(self):
+        self.client_context.__exit__(None, None, None)
+        self.database_path_patch.stop()
+        self.temporary_directory.cleanup()
+
+    def test_event_api_saves_and_updates_google_place_fields(self):
+        create_data = {
+            "title": "ハッカソン",
+            "start_at": "2026-08-25T10:30",
+            "end_at": "2026-08-25T17:30",
+            "description": "",
+            "location_name": "Garraway F",
+            "destination": "福岡県福岡市中央区今泉1丁目19番22号",
+            "destination_place_id": "ChIJ-created",
+            "destination_lat": 33.586,
+            "destination_lng": 130.398,
+            "arrival_buffer_minutes": 10,
+        }
+
+        create_response = self.client.post("/api/events", json=create_data)
+
+        self.assertEqual(create_response.status_code, 201)
+        created_event = create_response.json()
+        self.assertEqual(created_event["destination_place_id"], "ChIJ-created")
+        self.assertEqual(created_event["destination_lat"], 33.586)
+        self.assertEqual(created_event["destination_lng"], 130.398)
+        self.assertEqual(self.client.get("/api/events").json(), [created_event])
+
+        update_data = {
+            **create_data,
+            "location_name": "新しい会場",
+            "destination": "新しい住所",
+            "destination_place_id": "ChIJ-updated",
+            "destination_lat": 33.59,
+            "destination_lng": 130.4,
+        }
+        update_response = self.client.put(
+            f"/api/events/{created_event['id']}",
+            json=update_data,
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        updated_event = update_response.json()
+        self.assertEqual(updated_event["destination_place_id"], "ChIJ-updated")
+        self.assertEqual(updated_event["destination_lat"], 33.59)
+        self.assertEqual(updated_event["destination_lng"], 130.4)
+
+    def test_event_api_allows_destination_without_google_place_fields(self):
+        response = self.client.post(
+            "/api/events",
+            json={
+                "title": "文字列だけの目的地",
+                "start_at": "2026-08-25T10:30",
+                "end_at": "2026-08-25T11:30",
+                "destination": "天神駅の近く",
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        event = response.json()
+        self.assertIsNone(event["destination_place_id"])
+        self.assertIsNone(event["destination_lat"])
+        self.assertIsNone(event["destination_lng"])
+
+
 class RouteAndTravelPlanApiTest(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()

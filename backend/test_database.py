@@ -34,6 +34,71 @@ SAMPLE_TRAVEL_PLAN = {
 }
 
 
+class EventDatabaseTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        database_path = Path(self.temporary_directory.name) / "test_schedule.db"
+        self.database_path_patch = patch.object(
+            database,
+            "DATABASE_PATH",
+            database_path,
+        )
+        self.database_path_patch.start()
+        database.initialize_database()
+
+    def tearDown(self):
+        self.database_path_patch.stop()
+        self.temporary_directory.cleanup()
+
+    def test_google_place_fields_can_be_created_retrieved_and_updated(self):
+        event = database.create_event(
+            "ハッカソン",
+            "2026-08-25T10:30",
+            "2026-08-25T17:30",
+            location_name="Garraway F",
+            destination="福岡県福岡市中央区今泉1丁目19番22号",
+            destination_place_id="ChIJ-created",
+            destination_lat=33.586,
+            destination_lng=130.398,
+            arrival_buffer_minutes=10,
+        )
+
+        self.assertEqual(event["destination_place_id"], "ChIJ-created")
+        self.assertEqual(event["destination_lat"], 33.586)
+        self.assertEqual(event["destination_lng"], 130.398)
+        self.assertEqual(database.get_event(event["id"]), event)
+        self.assertEqual(database.get_all_events(), [event])
+
+        updated_event = database.update_event(
+            event["id"],
+            "会場変更後のハッカソン",
+            "2026-08-25T10:30",
+            "2026-08-25T17:30",
+            location_name="新しい会場",
+            destination="新しい住所",
+            destination_place_id="ChIJ-updated",
+            destination_lat=33.59,
+            destination_lng=130.4,
+            arrival_buffer_minutes=15,
+        )
+
+        self.assertEqual(updated_event["destination_place_id"], "ChIJ-updated")
+        self.assertEqual(updated_event["destination_lat"], 33.59)
+        self.assertEqual(updated_event["destination_lng"], 130.4)
+
+    def test_google_place_fields_are_optional(self):
+        event = database.create_event(
+            "文字列だけの目的地",
+            "2026-08-25T10:30",
+            "2026-08-25T11:30",
+            destination="天神駅の近く",
+        )
+
+        self.assertIsNone(event["destination_place_id"])
+        self.assertIsNone(event["destination_lat"])
+        self.assertIsNone(event["destination_lng"])
+
+
 class TravelPlanDatabaseTest(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
@@ -259,7 +324,7 @@ class PreparationDatabaseTest(unittest.TestCase):
             database.create_preparation(999, "存在しない予定の準備")
 
 
-class TravelPlanMigrationTest(unittest.TestCase):
+class DatabaseMigrationTest(unittest.TestCase):
     def test_existing_travel_plan_is_kept_when_columns_are_added(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             database_path = Path(temporary_directory) / "old_schedule.db"
@@ -314,12 +379,28 @@ class TravelPlanMigrationTest(unittest.TestCase):
 
             with patch.object(database, "DATABASE_PATH", database_path):
                 database.initialize_database()
+                database.initialize_database()
                 migrated_travel_plan = database.get_travel_plan(1)
+                migrated_event = database.get_event(1)
+
+                with database.connect_database() as connection:
+                    event_columns = {
+                        row["name"]: row["type"]
+                        for row in connection.execute(
+                            "PRAGMA table_info(events)"
+                        ).fetchall()
+                    }
 
                 self.assertEqual(migrated_travel_plan["origin"], "")
                 self.assertEqual(migrated_travel_plan["destination"], "")
                 self.assertEqual(migrated_travel_plan["duration_minutes"], 48)
-                self.assertEqual(database.get_all_events()[0]["title"], "既存の予定")
+                self.assertEqual(migrated_event["title"], "既存の予定")
+                self.assertIsNone(migrated_event["destination_place_id"])
+                self.assertIsNone(migrated_event["destination_lat"])
+                self.assertIsNone(migrated_event["destination_lng"])
+                self.assertEqual(event_columns["destination_place_id"], "TEXT")
+                self.assertEqual(event_columns["destination_lat"], "REAL")
+                self.assertEqual(event_columns["destination_lng"], "REAL")
 
                 created_task = database.create_task("移行後のタスク")
                 self.assertEqual(created_task["title"], "移行後のタスク")
