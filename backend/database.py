@@ -126,6 +126,31 @@ def get_all_events():
     return [dict(row) for row in rows]
 
 
+def get_event(event_id):
+    with connect_database() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                id,
+                title,
+                start_at,
+                end_at,
+                description,
+                location_name,
+                destination,
+                arrival_buffer_minutes
+            FROM events
+            WHERE id = ?
+            """,
+            (event_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
 def create_event(
     title,
     start_at=None,
@@ -336,6 +361,16 @@ def save_travel_plan(
         ).fetchone()
 
     return dict(row)
+
+
+def delete_travel_plan(event_id):
+    with connect_database() as connection:
+        cursor = connection.execute(
+            "DELETE FROM travel_plans WHERE event_id = ?",
+            (event_id,),
+        )
+
+    return cursor.rowcount > 0
 
 
 def get_all_tasks():
