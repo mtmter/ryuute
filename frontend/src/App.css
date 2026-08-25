@@ -398,6 +398,7 @@
 
 .month-event,
 .month-task,
+.month-more-events,
 .week-task {
   min-width: 0;
   overflow: hidden;
@@ -406,7 +407,8 @@
 }
 
 .month-event,
-.month-task {
+.month-task,
+.month-more-events {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -441,6 +443,12 @@
   color: #613b8f;
   background: #f2eaff;
   cursor: pointer;
+}
+
+.month-more-events {
+  color: #596579;
+  background: #eef2f7;
+  font-weight: 650;
 }
 
 .month-task:hover,
@@ -2014,6 +2022,7 @@
 
   .calendar-view-active .calendar-horizontal-scroll {
     min-height: 0;
+    overflow-y: hidden;
     flex: 1;
   }
 
@@ -2054,6 +2063,62 @@
     height: auto;
     min-height: 0;
     flex: 1;
+  }
+}
+
+@media (min-width: 721px) and (max-height: 800px) {
+  .calendar-view-active .month-weekdays div {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .calendar-view-active .month-day {
+    padding: 3px 6px 4px;
+  }
+
+  .calendar-view-active .month-date {
+    width: 22px;
+    height: 22px;
+    margin-bottom: 2px;
+    font-size: 0.78rem;
+  }
+
+  .calendar-view-active .month-day-items {
+    gap: 2px;
+  }
+
+  .calendar-view-active .month-event,
+  .calendar-view-active .month-task,
+  .calendar-view-active .month-more-events {
+    min-height: 21px;
+    padding: 2px 5px;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1100px) and (max-height: 740px) {
+  .calendar-view-active .month-calendar.has-six-weeks .month-day {
+    padding-top: 2px;
+    padding-bottom: 3px;
+  }
+
+  .calendar-view-active .month-calendar.has-six-weeks .month-date {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 1px;
+    font-size: 0.74rem;
+  }
+
+  .calendar-view-active .month-calendar.has-six-weeks .month-day-items {
+    gap: 1px;
+  }
+
+  .calendar-view-active .month-calendar.has-six-weeks .month-event,
+  .calendar-view-active .month-calendar.has-six-weeks .month-task,
+  .calendar-view-active .month-calendar.has-six-weeks .month-more-events {
+    min-height: 19px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    font-size: 0.72rem;
   }
 }
 

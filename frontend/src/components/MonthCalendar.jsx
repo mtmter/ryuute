@@ -9,6 +9,9 @@ import {
   parseDateTime,
 } from "../dateUtils";
 
+const MAX_EVENTS_WITHOUT_SUMMARY = 3;
+const VISIBLE_EVENTS_WITH_SUMMARY = 2;
+
 function MonthCalendar({
   events,
   tasks,
@@ -18,12 +21,15 @@ function MonthCalendar({
   onTaskClick,
 }) {
   const calendarDates = getMonthDates(selectedDate);
+  const hasSixWeeks = calendarDates.length === 42;
   const today = new Date();
 
   return (
     <section aria-label="月間カレンダー">
       <div className="calendar-horizontal-scroll">
-        <div className="month-calendar">
+        <div
+          className={`month-calendar${hasSixWeeks ? " has-six-weeks" : ""}`}
+        >
           <div className="month-weekdays" aria-hidden="true">
             {WEEKDAY_NAMES.map((weekday, index) => (
               <div
@@ -59,6 +65,12 @@ function MonthCalendar({
                 .sort((firstTask, secondTask) =>
                   firstTask.due_at.localeCompare(secondTask.due_at),
                 );
+              const visibleEvents =
+                dateEvents.length > MAX_EVENTS_WITHOUT_SUMMARY
+                  ? dateEvents.slice(0, VISIBLE_EVENTS_WITH_SUMMARY)
+                  : dateEvents;
+              const hiddenEventCount =
+                dateEvents.length - visibleEvents.length;
               const isOutsideMonth =
                 date.getMonth() !== selectedDate.getMonth();
 
@@ -85,7 +97,7 @@ function MonthCalendar({
                   </time>
 
                   <div className="month-day-items">
-                    {dateEvents.map((event) => {
+                    {visibleEvents.map((event) => {
                       const segment = getEventDaySegment(event, date);
                       const eventStart = parseDateTime(event.start_at);
                       const showStartTime =
@@ -126,6 +138,15 @@ function MonthCalendar({
                         </div>
                       );
                     })}
+
+                    {hiddenEventCount > 0 && (
+                      <div
+                        className="month-more-events"
+                        title={`他${hiddenEventCount}件の予定`}
+                      >
+                        他{hiddenEventCount}件
+                      </div>
+                    )}
 
                     {dateTasks.map((task) => (
                       <div
