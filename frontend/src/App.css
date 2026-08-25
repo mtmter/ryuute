@@ -1848,7 +1848,7 @@
 }
 
 .date-picker-button,
-.time-picker-select,
+.time-picker-input,
 .empty-date-time-button {
   min-height: 42px;
   border: 1px solid #cbd3df;
@@ -1873,23 +1873,85 @@
   font-size: 1.05rem;
 }
 
-.time-picker-select {
-  width: 106px;
-  flex: 0 0 auto;
-  padding: 9px 10px;
-  cursor: pointer;
+.time-picker-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 32px 9px 10px;
   font-variant-numeric: tabular-nums;
 }
 
+.time-picker {
+  position: relative;
+  width: 106px;
+  flex: 0 0 auto;
+}
+
+.time-picker:focus-within {
+  z-index: 3;
+}
+
+.time-picker-toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 30px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid #e1e6ee;
+  border-radius: 0 6px 6px 0;
+  color: #5c687d;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.time-picker-toggle:hover {
+  background: #eef2f8;
+}
+
+.time-picker-options {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  width: 106px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #d6dde8;
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgb(30 45 75 / 20%);
+}
+
+.time-picker-options button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  color: #283347;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.time-picker-options button:hover,
+.time-picker-options button:focus-visible {
+  outline: 0;
+  background: #eef2f8;
+}
+
 .date-picker-button:hover,
-.time-picker-select:hover,
+.time-picker-input:hover,
 .empty-date-time-button:hover {
   border-color: #9eabc0;
   background: #f8faff;
 }
 
 .date-picker-button:focus-visible,
-.time-picker-select:focus-visible,
+.time-picker-input:focus-visible,
 .empty-date-time-button:focus-visible {
   border-color: #5f83d6;
   outline: 3px solid rgb(86 126 211 / 15%);
