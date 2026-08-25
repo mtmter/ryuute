@@ -446,9 +446,24 @@
 }
 
 .month-more-events {
+  width: 100%;
+  border: 0;
   color: #596579;
   background: #eef2f7;
+  cursor: pointer;
+  font-family: inherit;
   font-weight: 650;
+  text-align: left;
+}
+
+.month-more-events:hover {
+  background: #d7dbe2;
+}
+
+.month-more-events:focus-visible {
+  background: #c9d9f8;
+  outline: 2px solid #2d5dcc;
+  outline-offset: 1px;
 }
 
 .month-task:hover,
@@ -483,6 +498,114 @@
   flex: 0 0 auto;
   border-radius: 50%;
   background: #8b5ac5;
+}
+
+.month-events-popover-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(24 34 53 / 12%);
+}
+
+.month-events-popover {
+  width: min(320px, 100%);
+  max-height: min(440px, calc(100vh - 40px));
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid #d6deea;
+  border-radius: 18px;
+  background: #eef3fb;
+  box-shadow: 0 14px 38px rgb(30 43 68 / 28%);
+}
+
+.month-events-popover-header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: start;
+}
+
+.month-events-popover-header > div {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.month-events-popover-header > div > span {
+  color: #667286;
+  font-size: 0.82rem;
+}
+
+.month-events-popover-header time {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #2d5dcc;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+
+.month-events-popover-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.month-events-popover-event,
+.month-events-popover-task {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 7px;
+  color: #24468f;
+  background: #dbe7ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.month-events-popover-event > span:last-child,
+.month-events-popover-task > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.month-events-popover-event:hover,
+.month-events-popover-event:focus-visible {
+  background: #c9d9f8;
+}
+
+.month-events-popover-event:focus-visible {
+  outline: 2px solid #2d5dcc;
+  outline-offset: 1px;
+}
+
+.month-events-popover-task {
+  color: #613b8f;
+  background: #f2eaff;
+}
+
+.month-events-popover-task:hover,
+.month-events-popover-task:focus-visible {
+  background: #e7d8fa;
+}
+
+.month-events-popover-task:focus-visible {
+  outline: 2px solid #7a50ad;
+  outline-offset: 1px;
 }
 
 .week-calendar {
