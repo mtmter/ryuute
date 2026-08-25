@@ -13,9 +13,6 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_API_BASE_URL;
-const LOCAL_MIGRATION_STORAGE_KEY = "ryuute_local_sqlite_migrated";
-
 function userCollection(uid, collectionName) {
   return collection(db, "users", uid, collectionName);
 }
@@ -29,12 +26,6 @@ function dataWithId(documentSnapshot) {
     id: documentSnapshot.id,
     ...documentSnapshot.data(),
   };
-}
-
-function withoutId(data) {
-  const documentData = { ...data };
-  delete documentData.id;
-  return documentData;
 }
 
 async function getCollectionData(uid, collectionName) {
@@ -161,109 +152,4 @@ export async function saveTravelPlan(uid, eventId, route) {
     documentData,
   );
   return { id: String(eventId), ...documentData };
-}
-
-async function fetchLegacyData(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`);
-  if (!response.ok) {
-    throw new Error("SQLiteの既存データを読み込めませんでした");
-  }
-  return response.json();
-}
-
-async function fetchLegacyTravelPlan(eventId) {
-  const response = await fetch(
-    `${API_BASE_URL}/events/${eventId}/travel-plan`,
-  );
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok) {
-    throw new Error("SQLiteの移動予定を読み込めませんでした");
-  }
-  return response.json();
-}
-
-function isLocalMigrationComplete() {
-  try {
-    return window.localStorage.getItem(LOCAL_MIGRATION_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function rememberLocalMigration() {
-  try {
-    window.localStorage.setItem(LOCAL_MIGRATION_STORAGE_KEY, "true");
-  } catch {
-    // Firestore側にも完了記録があるため、localStorageが使えなくても続行します。
-  }
-}
-
-export async function migrateLocalDataIfNeeded(uid) {
-  const migrationDocument = userDocument(
-    uid,
-    "metadata",
-    "localSqliteMigration",
-  );
-  const migrationSnapshot = await getDoc(migrationDocument);
-
-  if (migrationSnapshot.exists()) {
-    rememberLocalMigration();
-    return;
-  }
-
-  // SQLiteのデータは最初にログインした1ユーザーへだけ移行します。
-  if (isLocalMigrationComplete()) {
-    return;
-  }
-
-  const [events, tasks, preparations] = await Promise.all([
-    fetchLegacyData("/events"),
-    fetchLegacyData("/tasks"),
-    fetchLegacyData("/preparations"),
-  ]);
-  const travelPlans = (
-    await Promise.all(
-      events.map((event) => fetchLegacyTravelPlan(event.id)),
-    )
-  ).filter(Boolean);
-
-  const batch = writeBatch(db);
-  events.forEach((event) => {
-    batch.set(
-      userDocument(uid, "events", event.id),
-      withoutId(event),
-    );
-  });
-  tasks.forEach((task) => {
-    batch.set(
-      userDocument(uid, "tasks", task.id),
-      withoutId(task),
-    );
-  });
-  preparations.forEach((preparation) => {
-    batch.set(
-      userDocument(uid, "preparations", preparation.id),
-      {
-        ...withoutId(preparation),
-        event_id: String(preparation.event_id),
-      },
-    );
-  });
-  travelPlans.forEach((travelPlan) => {
-    batch.set(
-      userDocument(uid, "travelPlans", travelPlan.event_id),
-      {
-        ...withoutId(travelPlan),
-        event_id: String(travelPlan.event_id),
-      },
-    );
-  });
-  batch.set(migrationDocument, {
-    completed_at: new Date().toISOString(),
-  });
-
-  await batch.commit();
-  rememberLocalMigration();
 }

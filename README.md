@@ -15,11 +15,11 @@
 
 ---
 
-# 1. 2026-08-24時点の方針
+# 1. 2026-08-25時点の方針
 
 このREADMEを今後の実装仕様の基準とします。
 
-現在のリポジトリにはReact / FastAPI / SQLiteによる予定・タスク管理、予定詳細、経路検索UI、TravelPlan API、準備チェックリスト・準備案内などが実装されています。
+現在のリポジトリにはReact / Firebaseによる認証・予定・タスク管理、予定詳細、経路検索UI、移動予定、準備チェックリスト・準備案内などが実装されています。予定・タスク・準備項目・移動予定は、ログインユーザーごとにCloud Firestoreへ保存します。
 
 一方、バックエンドの経路検索サービスにはGoogle Routes APIを利用した既存実装が残っています。日本の公共交通経路取得で期待した結果を安定して得られなかったため、**経路検索の本番APIを駅すぱあと API スタンダードへ変更**します。
 
@@ -45,7 +45,8 @@ Google Routes APIは新仕様では経路検索に使用しません。
 | フロントエンド | React |
 | ビルドツール | Vite |
 | バックエンド | FastAPI |
-| データベース | SQLite |
+| 認証 | Firebase Authentication（Googleログイン） |
+| データベース | Cloud Firestore |
 | 場所候補・場所情報 | Google Places Autocomplete |
 | 地図リンク | Google Maps URLs |
 | 公共交通経路検索 | 駅すぱあと API スタンダード |
@@ -57,19 +58,17 @@ Google Routes APIは新仕様では経路検索に使用しません。
 ```text
 React
   |
-  | HTTP / JSON
-  v
-FastAPI
+  +------ Firebase Authentication
   |
-  +------ SQLite
+  +------ Cloud Firestore
   |
-  +------ Route Provider
-             |
-             +------ Mock Provider      <- デモ
-             |
-             +------ Ekispert Provider  <- 本番
-
-React
+  +------ FastAPI
+  |          |
+  |          +------ Route Provider
+  |                     |
+  |                     +------ Mock Provider      <- デモ
+  |                     |
+  |                     +------ Ekispert Provider  <- 本番
   |
   +------ Google Places Autocomplete
   |
@@ -168,7 +167,7 @@ React
 この機能のために、以下は追加・変更しません。
 
 - FastAPIのエンドポイント
-- SQLiteのテーブルや保存データ
+- Firestoreのコレクションや保存データ
 - 既存APIのリクエスト・レスポンス
 - Google Calendarなどの外部サービスとの連携
 - 外部APIへの通信
@@ -357,7 +356,7 @@ desired_arrival_at
 ## 9.1 Endpoint
 
 ```http
-POST /api/events/{event_id}/route-search
+POST /api/route-search
 ```
 
 ## 9.2 Request
@@ -368,7 +367,15 @@ POST /api/events/{event_id}/route-search
   "origin_address": "福岡県福岡市西区元岡744",
   "origin_place_id": "GOOGLE_PLACE_ID",
   "origin_lat": 33.596,
-  "origin_lng": 130.215
+  "origin_lng": 130.215,
+  "event": {
+    "start_at": "2026-08-25T10:30",
+    "location_name": "Garraway F",
+    "destination": "福岡県福岡市中央区天神2丁目10-3",
+    "destination_lat": 33.586,
+    "destination_lng": 130.398,
+    "arrival_buffer_minutes": 10
+  }
 }
 ```
 
@@ -378,16 +385,14 @@ POST /api/events/{event_id}/route-search
 
 座標がない場合は `origin_address`、それもなければ `origin_name` をフォールバックとして利用します。
 
-目的地はEventから取得します。
+`event` には、Firestoreから読み込んだ対象予定のうち、経路検索に必要な情報をフロントエンドから渡します。
 
 ## 9.3 バックエンド処理
 
 ```text
-POST /api/events/{event_id}/route-search
+POST /api/route-search
         ↓
-Event取得
-        ↓
-目的地取得
+リクエスト内の予定・目的地情報を確認
         ↓
 予定開始 - 到着余裕時間
         ↓
@@ -451,7 +456,6 @@ MVPでは次の仕様とします。
 ```text
 backend/
 ├── main.py
-├── database.py
 ├── routes_service.py
 ├── route_providers/
 │   ├── mock_provider.py
@@ -658,99 +662,52 @@ Garraway F
 
 # 15. 移動予定 TravelPlan
 
-移動予定は通常予定とは別の `travel_plans` テーブルへ保存します。
+移動予定は通常予定とは別の `travelPlans` コレクションへ保存します。
 
-1つの予定につき1件とします。
-
-同じ予定に新しい経路を登録した場合は上書きします。
-
-予定を削除した場合はTravelPlanも削除します。
+1つの予定につき1件とし、予定IDを移動予定のドキュメントIDとして使用します。同じ予定に新しい経路を登録した場合は上書きし、予定を削除した場合は移動予定も削除します。
 
 ---
 
-# 16. DB共通仕様
+# 16. Firestore共通仕様
 
-SQLiteを使用します。
+ログイン中のFirebase Authenticationのuidを使い、ユーザーごとに次のパスへ保存します。
 
-日時はMVPでは次の文字列形式で保存します。
+```text
+users/{uid}/events/{eventId}
+users/{uid}/tasks/{taskId}
+users/{uid}/preparations/{preparationId}
+users/{uid}/travelPlans/{eventId}
+```
+
+Firestore Security Rulesにより、各ユーザーは自分のuid以下のデータだけを読み書きできます。日時はMVPでは次の文字列形式で保存します。
 
 ```text
 YYYY-MM-DDTHH:mm
 ```
 
-使用するテーブルは次の4つです。
+---
 
-```text
-events
-tasks
-travel_plans
-event_preparations
-```
+# 17. eventsコレクション
 
-出発地点を保存する `settings` テーブルは使用しません。
+予定タイトル、開始・終了日時、説明、場所名・住所・Place ID・緯度経度、到着余裕時間を保存します。ドキュメントIDはFirestoreが発行します。
 
 ---
 
-# 17. eventsテーブル
+# 18. tasksコレクション
 
-| カラム | SQLite型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `id` | INTEGER | 必須 | 主キー、AUTOINCREMENT |
-| `title` | TEXT | 必須 | 予定タイトル |
-| `start_at` | TEXT | 必須 | 開始日時 |
-| `end_at` | TEXT | 必須 | 終了日時 |
-| `description` | TEXT | 必須 | 未入力時は空文字 |
-| `location_name` | TEXT | 任意 | 表示用の場所名 |
-| `destination` | TEXT | 任意 | 住所・目的地文字列 |
-| `destination_place_id` | TEXT | 任意 | Google Place ID |
-| `destination_lat` | REAL | 任意 | WGS84緯度 |
-| `destination_lng` | REAL | 任意 | WGS84経度 |
-| `arrival_buffer_minutes` | INTEGER | 任意 | 予定開始何分前までに到着するか |
+タスクタイトル、期限、説明、完了状態を保存します。ドキュメントIDはFirestoreが発行します。
 
 ---
 
-# 18. tasksテーブル
+# 19. travelPlansコレクション
 
-| カラム | SQLite型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `id` | INTEGER | 必須 | 主キー、AUTOINCREMENT |
-| `title` | TEXT | 必須 | タスクタイトル |
-| `due_at` | TEXT | 任意 | 期限 |
-| `description` | TEXT | 必須 | 未入力時は空文字 |
-| `completed` | INTEGER | 必須 | 未完了0、完了1 |
+対応する予定ID、出発地・目的地、出発・到着日時、所要時間、主な移動手段、区間の配列を保存します。駅すぱあとの生レスポンスは保存しません。
 
 ---
 
-# 19. travel_plansテーブル
+# 20. preparationsコレクション
 
-| カラム | SQLite型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `id` | INTEGER | 必須 | 主キー、AUTOINCREMENT |
-| `event_id` | INTEGER | 必須 | 対応する予定、UNIQUE |
-| `origin` | TEXT | 必須 | 検索時の出発地表示名 |
-| `destination` | TEXT | 必須 | 検索時の目的地表示名 |
-| `departure_at` | TEXT | 必須 | 出発日時 |
-| `arrival_at` | TEXT | 必須 | 到着日時 |
-| `duration_minutes` | INTEGER | 必須 | 所要時間 |
-| `transport_mode` | TEXT | 必須 | 主な移動手段 |
-| `route_details` | TEXT | 必須 | segmentsをJSON文字列として保存 |
-
-駅すぱあとの生レスポンスはDBへ保存しません。
-
----
-
-# 20. event_preparationsテーブル
-
-予定ごとに持ち物・事前準備を登録します。
-
-| カラム | SQLite型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `id` | INTEGER | 必須 | 主キー、AUTOINCREMENT |
-| `event_id` | INTEGER | 必須 | 対応する予定 |
-| `title` | TEXT | 必須 | 準備項目名 |
-| `completed` | INTEGER | 必須 | 未完了0、完了1 |
-
-予定削除時は `ON DELETE CASCADE` で準備項目も削除します。
+予定ごとの持ち物・事前準備として、対応する予定ID、準備項目名、完了状態を保存します。予定削除時は、フロントエンドから関連する準備項目もまとめて削除します。
 
 ---
 
@@ -860,7 +817,7 @@ event_preparations
 この機能のために、以下は追加・変更しません。
 
 - FastAPIのエンドポイント
-- SQLiteのテーブルや保存データ
+- Firestoreのコレクションや保存データ
 - 既存APIのリクエスト・レスポンス
 - Google Calendarなどの外部サービスとの連携
 - 外部APIへの通信
@@ -893,52 +850,18 @@ event_preparations
 
 # 22. API一覧
 
+予定・タスク・準備項目・移動予定のCRUDは、フロントエンドからCloud Firestoreへ直接行います。FastAPIはヘルスチェックと経路検索だけを担当します。
+
 ## Health
 
 ```http
 GET /api/health
 ```
 
-## Event
-
-```http
-GET    /api/events
-POST   /api/events
-PUT    /api/events/{event_id}
-DELETE /api/events/{event_id}
-```
-
 ## Route Search
 
 ```http
-POST /api/events/{event_id}/route-search
-```
-
-## TravelPlan
-
-```http
-GET    /api/events/{event_id}/travel-plan
-PUT    /api/events/{event_id}/travel-plan
-DELETE /api/events/{event_id}/travel-plan
-```
-
-## Preparation
-
-```http
-GET    /api/preparations
-GET    /api/events/{event_id}/preparations
-POST   /api/events/{event_id}/preparations
-PUT    /api/events/{event_id}/preparations/{preparation_id}
-DELETE /api/events/{event_id}/preparations/{preparation_id}
-```
-
-## Task
-
-```http
-GET    /api/tasks
-POST   /api/tasks
-PUT    /api/tasks/{task_id}
-DELETE /api/tasks/{task_id}
+POST /api/route-search
 ```
 
 ---
@@ -978,13 +901,15 @@ VITE_BACKEND_API_BASE_URL=http://localhost:8000/api
 
 ブラウザ用Google Maps PlatformキーはGoogle Cloud側でHTTPリファラと利用APIを制限します。
 
-ローカル開発用の値は `frontend/.env.local` に設定します。Firebase用の値は後続のFirebase導入で利用します。
+ローカル開発用の値は `frontend/.env.local` に設定します。`VITE_BACKEND_API_BASE_URL` は経路検索時だけ使用し、FirestoreのCRUDでは使用しません。
 
 ---
 
 # 24. 起動方法
 
 ## バックエンド
+
+バックエンドは経路検索で使用します。予定・タスクなどのFirestore上のデータ操作には必要ありません。
 
 ```bash
 cd backend
@@ -1029,7 +954,7 @@ npm run dev
    ↓
 11. 「この経路を登録」
    ↓
-12. TravelPlanをSQLiteへ保存
+12. TravelPlanをCloud Firestoreへ保存
    ↓
 13. 週カレンダーに移動予定を表示
 ```
@@ -1042,10 +967,10 @@ npm run dev
 
 ```text
 デモ
-fixture -> converter -> FastAPI -> React -> SQLite
+fixture -> converter -> FastAPI -> React -> Cloud Firestore
 
 本番
-Ekispert -> converter -> FastAPI -> React -> SQLite
+Ekispert -> converter -> FastAPI -> React -> Cloud Firestore
 ```
 
 違うのは最初のデータ取得部分だけです。
