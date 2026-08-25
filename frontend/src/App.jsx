@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import AddItemModal from "./components/AddItemModal";
+import AccountMenu from "./components/AccountMenu";
 import CalendarToolbar from "./components/CalendarToolbar";
 import DayCalendar from "./components/DayCalendar";
 import EventDetailsModal from "./components/EventDetailsModal";
@@ -667,12 +668,7 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
             追加
           </button>
           <div className="auth-user-controls">
-            <span title={user.email ?? ""}>
-              {user.displayName || user.email || "ログイン中"}
-            </span>
-            <button type="button" onClick={onLogout}>
-              ログアウト
-            </button>
+            <AccountMenu user={user} onLogout={onLogout} />
           </div>
         </div>
       </header>

@@ -59,19 +59,92 @@
 .auth-user-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: 220px;
+  justify-content: flex-end;
 }
 
-.auth-user-controls span {
+.account-menu {
+  position: relative;
+}
+
+.account-menu-trigger {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 2px;
+  place-items: center;
+  border: 1px solid #cbd3df;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.account-menu-trigger:hover,
+.account-menu-trigger[aria-expanded="true"] {
+  border-color: #91a5cd;
+  background: #f1f4f8;
+}
+
+.account-menu-trigger:focus-visible {
+  outline: 3px solid rgb(41 87 200 / 22%);
+  outline-offset: 2px;
+}
+
+.account-avatar,
+.account-avatar-fallback {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.account-avatar {
+  display: block;
+  object-fit: cover;
+}
+
+.account-avatar-fallback {
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: #2957c8;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.account-menu-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: min(280px, calc(100vw - 28px));
+  padding: 16px;
+  border: 1px solid #d9e0e9;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgb(46 61 91 / 18%);
+}
+
+.account-menu-name,
+.account-menu-email {
   overflow: hidden;
-  color: #5a6476;
-  font-size: 0.78rem;
+  margin: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.auth-user-controls button,
+.account-menu-name {
+  color: #253149;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.account-menu-email {
+  margin-top: 4px;
+  color: #687386;
+  font-size: 0.8rem;
+}
+
+.account-menu-logout,
 .google-login-button {
   min-height: 36px;
   padding: 6px 12px;
@@ -83,7 +156,12 @@
   white-space: nowrap;
 }
 
-.auth-user-controls button:hover,
+.account-menu-logout {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.account-menu-logout:hover,
 .google-login-button:hover:not(:disabled) {
   background: #f1f4f8;
 }
@@ -2225,7 +2303,7 @@
   }
 
   .auth-user-controls {
-    max-width: none;
+    justify-content: flex-end;
   }
 }
 
@@ -2258,7 +2336,6 @@
 
   .auth-user-controls {
     width: 100%;
-    max-width: none;
     justify-content: flex-end;
   }
 
