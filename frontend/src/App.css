@@ -56,6 +56,91 @@
   gap: 8px;
 }
 
+.auth-user-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+}
+
+.auth-user-controls span {
+  overflow: hidden;
+  color: #5a6476;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-user-controls button,
+.google-login-button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #cbd3df;
+  border-radius: 9px;
+  color: #354157;
+  background: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-user-controls button:hover,
+.google-login-button:hover:not(:disabled) {
+  background: #f1f4f8;
+}
+
+.auth-screen {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+  color: #253149;
+  background: #f6f8fc;
+}
+
+.auth-card {
+  display: grid;
+  width: min(100%, 420px);
+  padding: 36px;
+  place-items: center;
+  border: 1px solid #d9e0e9;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgb(46 61 91 / 10%);
+  text-align: center;
+}
+
+.auth-card h1 {
+  margin: 14px 0 8px;
+  font-size: 1.5rem;
+}
+
+.auth-card > p {
+  margin: 0 0 24px;
+  color: #687387;
+}
+
+.auth-card .auth-error-message {
+  margin-bottom: 16px;
+  color: #b42318;
+}
+
+.google-login-button {
+  min-width: 180px;
+  border-color: #2d5dcc;
+  color: #ffffff;
+  background: #2d5dcc;
+  font-weight: 650;
+}
+
+.google-login-button:hover:not(:disabled) {
+  background: #244fae;
+}
+
+.google-login-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .view-tabs {
   display: flex;
   gap: 4px;
@@ -2335,6 +2420,10 @@
     grid-column: 2;
     justify-self: end;
   }
+
+  .auth-user-controls {
+    max-width: none;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2362,6 +2451,12 @@
     grid-column: 1;
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .auth-user-controls {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-end;
   }
 
   .reminder-settings-button {
