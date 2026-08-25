@@ -61,7 +61,7 @@ function WeekCalendar({
           </div>
 
           <div className="week-due-row">
-            <div className="week-due-label">期限</div>
+            <div aria-hidden="true" />
             {weekDates.map((date) => {
               const dateTasks = tasks
                 .filter(

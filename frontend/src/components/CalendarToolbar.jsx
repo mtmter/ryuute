@@ -13,16 +13,16 @@ function CalendarToolbar({ title, onPrevious, onToday, onNext }) {
         >
           ‹
         </button>
+        <button
+          className="icon-button"
+          type="button"
+          aria-label="次の期間"
+          onClick={onNext}
+        >
+          ›
+        </button>
       </div>
       <h2>{title}</h2>
-      <button
-        className="icon-button"
-        type="button"
-        aria-label="次の期間"
-        onClick={onNext}
-      >
-        ›
-      </button>
     </div>
   );
 }

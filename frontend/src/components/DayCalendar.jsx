@@ -72,7 +72,7 @@ function DayCalendar({
           </div>
 
           <div className="week-due-row day-due-row">
-            <div className="week-due-label">期限</div>
+            <div aria-hidden="true" />
             <div className="week-due-cell">
               {dateTasks.map((task) => (
                 <div

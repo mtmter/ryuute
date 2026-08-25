@@ -8,9 +8,9 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 24px;
-  min-height: 72px;
-  padding: 12px 32px;
+  gap: 16px 24px;
+  min-height: 60px;
+  padding: 8px 24px;
   border-bottom: 1px solid #dde3ec;
   background: #ffffff;
 }
@@ -18,7 +18,7 @@
 .app-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .app-brand h1 {
@@ -30,8 +30,8 @@
 
 .app-logo {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border-radius: 12px;
   color: #ffffff;
@@ -42,7 +42,7 @@
 .header-calendar-controls {
   display: flex;
   min-width: 0;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .header-calendar-controls:empty {
@@ -53,7 +53,7 @@
   grid-column: 3;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .view-tabs {
@@ -66,8 +66,8 @@
 }
 
 .view-tabs button {
-  min-width: 72px;
-  padding: 8px 16px;
+  min-width: 64px;
+  padding: 6px 12px;
   border: 0;
   border-radius: 7px;
   color: #5a6476;
@@ -90,8 +90,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  min-height: 42px;
-  padding: 8px 17px;
+  min-height: 36px;
+  padding: 6px 14px;
   border: 0;
   border-radius: 9px;
   color: #ffffff;
@@ -111,8 +111,8 @@
 }
 
 .reminder-settings-button {
-  min-height: 42px;
-  padding: 8px 13px;
+  min-height: 36px;
+  padding: 6px 11px;
   border: 1px solid #cbd3df;
   border-radius: 9px;
   color: #42506a;
@@ -260,7 +260,7 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 16px;
+  gap: 12px;
 }
 
 .calendar-toolbar h2 {
@@ -280,8 +280,8 @@
 
 .calendar-toolbar button,
 .error-message button {
-  min-height: 38px;
-  padding: 7px 15px;
+  min-height: 34px;
+  padding: 5px 12px;
   border: 1px solid #cbd3df;
   border-radius: 8px;
   color: #354157;
@@ -296,7 +296,7 @@
 
 .calendar-toolbar .icon-button {
   display: grid;
-  width: 38px;
+  width: 34px;
   padding: 0;
   place-items: center;
   border-color: transparent;
@@ -319,12 +319,11 @@
 .month-weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  border-bottom: 1px solid #d9e0e9;
   color: #697386;
 }
 
 .month-weekdays div {
-  padding: 11px 8px;
+  padding: 8px;
   font-size: 0.8rem;
   text-align: center;
 }
@@ -451,6 +450,13 @@
   background: #e7d8fa;
 }
 
+.month-event:hover,
+.month-event:focus-visible,
+.week-event:hover,
+.week-event:focus-visible {
+  background: #c9d9f8;
+}
+
 .month-task:focus-visible,
 .week-task:focus-visible {
   outline: 2px solid #7a50ad;
@@ -472,10 +478,14 @@
 }
 
 .week-calendar {
+  --calendar-scrollbar-space: 15px;
+
   min-width: 980px;
 }
 
 .day-calendar {
+  --calendar-scrollbar-space: 15px;
+
   min-width: 360px;
 }
 
@@ -492,14 +502,9 @@
   grid-template-columns: 64px minmax(0, 1fr);
 }
 
-.week-header-row {
-  border-bottom: 1px solid #dfe4ec;
-}
-
-.week-corner,
-.week-due-label,
-.week-hours {
-  border-right: 1px solid #e1e6ed;
+.week-header-row,
+.week-due-row {
+  padding-right: var(--calendar-scrollbar-space);
 }
 
 .week-date-heading {
@@ -507,14 +512,9 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 64px;
-  border-right: 1px solid #eef1f5;
+  min-height: 56px;
   color: #697386;
   font-size: 0.78rem;
-}
-
-.week-date-heading:last-child {
-  border-right: 0;
 }
 
 .week-date-heading time {
@@ -530,16 +530,7 @@
 .week-due-row {
   position: relative;
   z-index: 2;
-  min-height: 56px;
-  border-bottom: 1px solid #d9e0e9;
   background: #ffffff;
-}
-
-.week-due-label {
-  padding: 10px 8px;
-  color: #7a8495;
-  font-size: 0.72rem;
-  text-align: right;
 }
 
 .week-due-cell {
@@ -547,12 +538,7 @@
   align-content: start;
   gap: 3px;
   min-width: 0;
-  padding: 6px 4px;
-  border-right: 1px solid #eef1f5;
-}
-
-.week-due-cell:last-child {
-  border-right: 0;
+  padding: 4px;
 }
 
 .week-task {
@@ -589,7 +575,6 @@
 
 .week-day-column {
   position: relative;
-  border-right: 1px solid #e5e9ef;
   background-image: repeating-linear-gradient(
     to bottom,
     #ffffff 0,
@@ -598,10 +583,6 @@
     #e7ebf1 var(--hour-height)
   );
   cursor: crosshair;
-}
-
-.week-day-column:last-child {
-  border-right: 0;
 }
 
 .week-event {
@@ -614,7 +595,6 @@
   min-height: 28px;
   overflow: hidden;
   padding: 5px 7px;
-  border-left: 3px solid #2d5dcc;
   border-radius: 5px;
   color: #1f448f;
   background: #dce8ff;
@@ -930,6 +910,14 @@
 
 .notification-settings-modal {
   width: min(440px, 100%);
+}
+
+.week-time-scroll,
+.add-item-modal,
+.event-details-modal,
+.task-details-modal,
+.notification-settings-modal {
+  scrollbar-color: #cbd3df transparent;
 }
 
 .notification-settings-content {
@@ -1962,10 +1950,11 @@
   }
 
   .calendar-view-active .app-content {
+    width: min(1600px, calc(100% - 32px));
     min-height: 0;
     flex: 1;
-    padding-top: 20px;
-    padding-bottom: 20px;
+    padding-top: 14px;
+    padding-bottom: 14px;
   }
 
   .calendar-page-layout {
@@ -1973,7 +1962,7 @@
     height: 100%;
     min-height: 0;
     grid-template-columns: 240px minmax(0, 1fr);
-    gap: 18px;
+    gap: 14px;
   }
 
   .calendar-sidebar {
@@ -2090,8 +2079,8 @@
   .app-header {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
-    gap: 12px;
-    padding: 14px 18px;
+    gap: 8px;
+    padding: 10px 14px;
   }
 
   .header-calendar-controls {
