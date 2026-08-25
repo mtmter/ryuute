@@ -648,6 +648,11 @@
   font-size: 0.78rem;
 }
 
+.week-calendar .week-due-cell,
+.week-calendar .week-day-column {
+  border-left: 1px solid #e7ebf1;
+}
+
 .week-date-heading time {
   display: grid;
   width: 34px;
@@ -678,6 +683,13 @@
   color: #653f91;
   background: #f0e6fc;
   cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.week-more-tasks {
+  min-height: 20px;
+  padding: 1px 6px;
+  background: transparent;
   font-size: 0.7rem;
 }
 
