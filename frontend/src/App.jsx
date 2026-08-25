@@ -21,7 +21,6 @@ import {
   deleteTask as deleteFirestoreTask,
   getTravelPlan as getFirestoreTravelPlan,
   loadScheduleData,
-  migrateLocalDataIfNeeded,
   saveTravelPlan as saveFirestoreTravelPlan,
   updateEvent as updateFirestoreEvent,
   updatePreparation as updateFirestorePreparation,
@@ -214,7 +213,6 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   useEffect(() => {
     async function loadSchedule() {
       try {
-        await migrateLocalDataIfNeeded(user.uid);
         const scheduleData = await loadScheduleData(user.uid);
         setEvents(scheduleData.events);
         setTasks(scheduleData.tasks);
@@ -295,7 +293,6 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
     setPreparationErrorMessage("");
 
     try {
-      await migrateLocalDataIfNeeded(user.uid);
       const scheduleData = await loadScheduleData(user.uid);
       setEvents(scheduleData.events);
       setTasks(scheduleData.tasks);
