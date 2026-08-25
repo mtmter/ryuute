@@ -967,9 +967,18 @@ ekispert   駅すぱあとAPIを使用
 
 ```text
 VITE_GOOGLE_MAPS_API_KEY=
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_BACKEND_API_BASE_URL=http://localhost:8000/api
 ```
 
 ブラウザ用Google Maps PlatformキーはGoogle Cloud側でHTTPリファラと利用APIを制限します。
+
+ローカル開発用の値は `frontend/.env.local` に設定します。Firebase用の値は後続のFirebase導入で利用します。
 
 ---
 
