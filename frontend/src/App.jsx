@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import AddItemModal from "./components/AddItemModal";
 import CalendarToolbar from "./components/CalendarToolbar";
@@ -12,6 +12,21 @@ import TaskDetailsModal from "./components/TaskDetailsModal";
 import TaskList from "./components/TaskList";
 import WeekCalendar from "./components/WeekCalendar";
 import useAuth from "./auth/useAuth";
+import {
+  createEvent as createFirestoreEvent,
+  createPreparation as createFirestorePreparation,
+  createTask as createFirestoreTask,
+  deleteEvent as deleteFirestoreEvent,
+  deletePreparation as deleteFirestorePreparation,
+  deleteTask as deleteFirestoreTask,
+  getTravelPlan as getFirestoreTravelPlan,
+  loadScheduleData,
+  migrateLocalDataIfNeeded,
+  saveTravelPlan as saveFirestoreTravelPlan,
+  updateEvent as updateFirestoreEvent,
+  updatePreparation as updateFirestorePreparation,
+  updateTask as updateFirestoreTask,
+} from "./firestoreService";
 import {
   addDays,
   addMonths,
@@ -35,48 +50,6 @@ const PREPARATION_REMINDER_OPTIONS = [
   { label: "3日前", minutes: 3 * 24 * 60 },
   { label: "7日前", minutes: 7 * 24 * 60 },
 ];
-
-async function getScheduleData() {
-  const [eventsResult, tasksResult, preparationsResult] =
-    await Promise.allSettled([
-      fetch(`${API_BASE_URL}/events`),
-      fetch(`${API_BASE_URL}/tasks`),
-      fetch(`${API_BASE_URL}/preparations`),
-    ]);
-
-  if (
-    eventsResult.status === "rejected" ||
-    tasksResult.status === "rejected"
-  ) {
-    throw new Error("予定とタスクを取得できませんでした");
-  }
-
-  const eventsResponse = eventsResult.value;
-  const tasksResponse = tasksResult.value;
-
-  if (!eventsResponse.ok || !tasksResponse.ok) {
-    throw new Error("予定とタスクを取得できませんでした");
-  }
-
-  const [events, tasks] = await Promise.all([
-    eventsResponse.json(),
-    tasksResponse.json(),
-  ]);
-  let preparations = null;
-
-  if (
-    preparationsResult.status === "fulfilled" &&
-    preparationsResult.value.ok
-  ) {
-    try {
-      preparations = await preparationsResult.value.json();
-    } catch {
-      preparations = null;
-    }
-  }
-
-  return { events, preparations, tasks };
-}
 
 function getInitialPreparationReminderMinutes() {
   try {
@@ -214,55 +187,6 @@ async function getResponseError(response, defaultMessage) {
   return defaultMessage;
 }
 
-async function getTravelPlan(eventId) {
-  let response;
-
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/events/${eventId}/travel-plan`,
-    );
-  } catch {
-    throw new Error("移動予定を取得できませんでした");
-  }
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      await getResponseError(response, "移動予定を取得できませんでした"),
-    );
-  }
-
-  return response.json();
-}
-
-async function saveTravelPlan(eventId, route) {
-  let response;
-
-  try {
-    response = await fetch(
-      `${API_BASE_URL}/events/${eventId}/travel-plan`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(route),
-      },
-    );
-  } catch {
-    throw new Error("移動予定を保存できませんでした");
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      await getResponseError(response, "移動予定を保存できませんでした"),
-    );
-  }
-
-  return response.json();
-}
-
 function ScheduleApp({ authErrorMessage, onLogout, user }) {
   const [activeView, setActiveView] = useState("month");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -290,7 +214,8 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   useEffect(() => {
     async function loadSchedule() {
       try {
-        const scheduleData = await getScheduleData();
+        await migrateLocalDataIfNeeded(user.uid);
+        const scheduleData = await loadScheduleData(user.uid);
         setEvents(scheduleData.events);
         setTasks(scheduleData.tasks);
         setPreparations(scheduleData.preparations);
@@ -307,7 +232,7 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
     }
 
     loadSchedule();
-  }, []);
+  }, [user.uid]);
 
   useEffect(() => {
     try {
@@ -370,7 +295,8 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
     setPreparationErrorMessage("");
 
     try {
-      const scheduleData = await getScheduleData();
+      await migrateLocalDataIfNeeded(user.uid);
+      const scheduleData = await loadScheduleData(user.uid);
       setEvents(scheduleData.events);
       setTasks(scheduleData.tasks);
       setPreparations(scheduleData.preparations);
@@ -391,22 +317,12 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
     setErrorMessage("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${task.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: task.title,
-          due_at: task.due_at,
-          description: task.description,
-          completed: !task.completed,
-        }),
+      const updatedTask = await updateFirestoreTask(user.uid, task.id, {
+        title: task.title,
+        due_at: task.due_at,
+        description: task.description,
+        completed: !task.completed,
       });
-
-      if (!response.ok) {
-        throw new Error("タスクの完了状態を更新できませんでした");
-      }
-
-      const updatedTask = await response.json();
       setTasks((currentTasks) =>
         currentTasks.map((currentTask) =>
           currentTask.id === updatedTask.id ? updatedTask : currentTask,
@@ -420,48 +336,28 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleUpdateTask(taskId, taskData) {
-    let response;
-
     try {
-      response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(taskData),
-      });
+      const updatedTask = await updateFirestoreTask(
+        user.uid,
+        taskId,
+        taskData,
+      );
+      setTasks((currentTasks) =>
+        currentTasks.map((currentTask) =>
+          currentTask.id === updatedTask.id ? updatedTask : currentTask,
+        ),
+      );
+      setSelectedTask(updatedTask);
     } catch {
       throw new Error("タスク更新の通信に失敗しました");
     }
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "タスクを更新できませんでした"),
-      );
-    }
-
-    const updatedTask = await response.json();
-    setTasks((currentTasks) =>
-      currentTasks.map((currentTask) =>
-        currentTask.id === updatedTask.id ? updatedTask : currentTask,
-      ),
-    );
-    setSelectedTask(updatedTask);
   }
 
   async function handleDeleteTask(taskId) {
-    let response;
-
     try {
-      response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-        method: "DELETE",
-      });
+      await deleteFirestoreTask(user.uid, taskId);
     } catch {
       throw new Error("タスク削除の通信に失敗しました");
-    }
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "タスクを削除できませんでした"),
-      );
     }
 
     setTasks((currentTasks) =>
@@ -512,24 +408,10 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleCreateItem(itemType, itemData) {
-    const response = await fetch(
-      `${API_BASE_URL}/${itemType === "event" ? "events" : "tasks"}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(itemData),
-      },
-    );
-
-    if (!response.ok) {
-      const defaultMessage =
-        itemType === "event"
-          ? "予定を追加できませんでした"
-          : "タスクを追加できませんでした";
-      throw new Error(await getResponseError(response, defaultMessage));
-    }
-
-    const createdItem = await response.json();
+    const createdItem =
+      itemType === "event"
+        ? await createFirestoreEvent(user.uid, itemData)
+        : await createFirestoreTask(user.uid, itemData);
     if (itemType === "event") {
       setEvents((currentEvents) => [...currentEvents, createdItem]);
     } else {
@@ -539,19 +421,11 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleUpdateEvent(eventId, eventData) {
-    const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(eventData),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "予定を更新できませんでした"),
-      );
-    }
-
-    const updatedEvent = await response.json();
+    const updatedEvent = await updateFirestoreEvent(
+      user.uid,
+      eventId,
+      eventData,
+    );
     setEvents((currentEvents) =>
       currentEvents.map((currentEvent) =>
         currentEvent.id === updatedEvent.id ? updatedEvent : currentEvent,
@@ -562,15 +436,7 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleDeleteEvent(eventId) {
-    const response = await fetch(`${API_BASE_URL}/events/${eventId}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "予定を削除できませんでした"),
-      );
-    }
+    await deleteFirestoreEvent(user.uid, eventId);
 
     setEvents((currentEvents) =>
       currentEvents.filter((currentEvent) => currentEvent.id !== eventId),
@@ -585,22 +451,11 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleCreatePreparation(eventId, title) {
-    const response = await fetch(
-      `${API_BASE_URL}/events/${eventId}/preparations`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      },
+    const createdPreparation = await createFirestorePreparation(
+      user.uid,
+      eventId,
+      title,
     );
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "準備項目を追加できませんでした"),
-      );
-    }
-
-    const createdPreparation = await response.json();
     setPreparations((currentPreparations) => [
       ...(currentPreparations ?? []),
       createdPreparation,
@@ -613,22 +468,14 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
     preparationId,
     preparationData,
   ) {
-    const response = await fetch(
-      `${API_BASE_URL}/events/${eventId}/preparations/${preparationId}`,
+    const updatedPreparation = await updateFirestorePreparation(
+      user.uid,
+      preparationId,
       {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preparationData),
+        ...preparationData,
+        event_id: String(eventId),
       },
     );
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "準備項目を更新できませんでした"),
-      );
-    }
-
-    const updatedPreparation = await response.json();
     setPreparations((currentPreparations) =>
       currentPreparations?.map((preparation) =>
         preparation.id === updatedPreparation.id
@@ -640,16 +487,7 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleDeletePreparation(eventId, preparationId) {
-    const response = await fetch(
-      `${API_BASE_URL}/events/${eventId}/preparations/${preparationId}`,
-      { method: "DELETE" },
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        await getResponseError(response, "準備項目を削除できませんでした"),
-      );
-    }
+    await deleteFirestorePreparation(user.uid, eventId, preparationId);
 
     setPreparations((currentPreparations) =>
       currentPreparations?.filter(
@@ -660,12 +498,27 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
 
   async function handleRouteSearch(eventId, originRequest) {
     let response;
+    const event = events.find((currentEvent) => currentEvent.id === eventId);
+
+    if (!event) {
+      throw new Error("予定が見つかりません");
+    }
 
     try {
-      response = await fetch(`${API_BASE_URL}/events/${eventId}/route-search`, {
+      response = await fetch(`${API_BASE_URL}/route-search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(originRequest),
+        body: JSON.stringify({
+          ...originRequest,
+          event: {
+            start_at: event.start_at,
+            location_name: event.location_name,
+            destination: event.destination,
+            destination_lat: event.destination_lat,
+            destination_lng: event.destination_lng,
+            arrival_buffer_minutes: event.arrival_buffer_minutes,
+          },
+        }),
       });
     } catch {
       throw new Error("経路検索サービスとの通信に失敗しました");
@@ -689,10 +542,19 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
   }
 
   async function handleRouteRegister(eventId, route) {
-    const savedTravelPlan = await saveTravelPlan(eventId, route);
+    const savedTravelPlan = await saveFirestoreTravelPlan(
+      user.uid,
+      eventId,
+      route,
+    );
     setRouteSearchResult(null);
     return savedTravelPlan;
   }
+
+  const handleTravelPlanLoad = useCallback(
+    (eventId) => getFirestoreTravelPlan(user.uid, eventId),
+    [user.uid],
+  );
 
   return (
     <div
@@ -928,7 +790,7 @@ function ScheduleApp({ authErrorMessage, onLogout, user }) {
           onPreparationAdd={handleCreatePreparation}
           onPreparationDelete={handleDeletePreparation}
           onPreparationUpdate={handleUpdatePreparation}
-          onTravelPlanLoad={getTravelPlan}
+          onTravelPlanLoad={handleTravelPlanLoad}
           onRouteRegister={handleRouteRegister}
           onRouteSearch={handleRouteSearch}
           onRouteSearchSuccess={(result) =>

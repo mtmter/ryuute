@@ -265,6 +265,30 @@ class RouteAndTravelPlanApiTest(unittest.TestCase):
         self.assertEqual(route["arrival_at"], "2026-08-25T09:57")
         self.assertIsNone(database.get_travel_plan(mock_event["id"]))
 
+    def test_direct_route_search_uses_event_data_without_database(self):
+        with patch.dict(os.environ, {"ROUTE_PROVIDER": "mock"}, clear=True):
+            response = self.client.post(
+                "/api/route-search",
+                json={
+                    "origin_name": "九州大学 伊都キャンパス",
+                    "origin_lat": 33.596,
+                    "origin_lng": 130.215,
+                    "event": {
+                        "start_at": "2026-08-25T10:22",
+                        "location_name": "Garraway F",
+                        "destination_lat": 33.586,
+                        "destination_lng": 130.398,
+                        "arrival_buffer_minutes": 10,
+                    },
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        route = response.json()
+        self.assertEqual(route["origin"], "九州大学 伊都キャンパス")
+        self.assertEqual(route["destination"], "Garraway F")
+        self.assertEqual(route["arrival_at"], "2026-08-25T09:57")
+
     def test_mock_route_search_applies_event_arrival_buffer(self):
         mock_event = database.create_event(
             "朝の予定",

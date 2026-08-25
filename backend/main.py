@@ -122,6 +122,19 @@ class RouteSearchRequest(BaseModel):
     origin_lng: float | None = None
 
 
+class RouteSearchEvent(BaseModel):
+    start_at: str
+    location_name: str | None = None
+    destination: str | None = None
+    destination_lat: float | None = None
+    destination_lng: float | None = None
+    arrival_buffer_minutes: int | None = None
+
+
+class DirectRouteSearchRequest(RouteSearchRequest):
+    event: RouteSearchEvent
+
+
 class RouteSegment(BaseModel):
     type: str
     from_: str = Field(alias="from")
@@ -279,6 +292,18 @@ def search_event_route(event_id: int, request: RouteSearchRequest):
     if event is None:
         raise HTTPException(status_code=404, detail="予定が見つかりません")
 
+    return search_route_for_event(event, request)
+
+
+@app.post(
+    "/api/route-search",
+    response_model=RouteSearchResponse,
+)
+def search_direct_route(request: DirectRouteSearchRequest):
+    return search_route_for_event(request.event.model_dump(), request)
+
+
+def search_route_for_event(event, request):
     origin_name = clean_optional_text(request.origin_name)
     origin_address = clean_optional_text(request.origin_address)
     origin_coordinates = format_route_coordinates(
