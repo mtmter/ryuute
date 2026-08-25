@@ -9,6 +9,7 @@ import { auth } from "../firebase";
 import AuthContext from "./authContext";
 
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

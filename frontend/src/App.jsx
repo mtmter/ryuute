@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import AddItemModal from "./components/AddItemModal";
 import CalendarToolbar from "./components/CalendarToolbar";
@@ -823,17 +823,55 @@ function App() {
   const { isAuthLoading, loginWithGoogle, logout, user } = useAuth();
   const [authErrorMessage, setAuthErrorMessage] = useState("");
   const [isAuthActionPending, setIsAuthActionPending] = useState(false);
+  const loginAttemptIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!isAuthActionPending || user) {
+      return undefined;
+    }
+
+    let resetTimerId;
+
+    function handleWindowFocus() {
+      // ポップアップを閉じてもFirebaseのPromiseが完了しない場合があるため、
+      // 元の画面へ戻った時点でログインボタンを再操作できるようにします。
+      resetTimerId = window.setTimeout(() => {
+        setIsAuthActionPending(false);
+      }, 300);
+    }
+
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleWindowFocus);
+      window.clearTimeout(resetTimerId);
+    };
+  }, [isAuthActionPending, user]);
 
   async function handleLogin() {
+    const loginAttemptId = loginAttemptIdRef.current + 1;
+    loginAttemptIdRef.current = loginAttemptId;
     setIsAuthActionPending(true);
     setAuthErrorMessage("");
 
     try {
       await loginWithGoogle();
-    } catch {
-      setAuthErrorMessage("Googleログインに失敗しました。もう一度お試しください");
+    } catch (error) {
+      const wasSuperseded = loginAttemptId !== loginAttemptIdRef.current;
+      const wasPopupCancelled = [
+        "auth/cancelled-popup-request",
+        "auth/popup-closed-by-user",
+      ].includes(error?.code);
+
+      if (!wasSuperseded && !wasPopupCancelled) {
+        setAuthErrorMessage(
+          "Googleログインに失敗しました。もう一度お試しください",
+        );
+      }
     } finally {
-      setIsAuthActionPending(false);
+      if (loginAttemptId === loginAttemptIdRef.current) {
+        setIsAuthActionPending(false);
+      }
     }
   }
 

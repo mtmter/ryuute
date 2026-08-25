@@ -19,3 +19,6 @@ backend/.env
 
 # OS
 .DS_Store
+
+# Firebase CLI
+firebase-debug.log*
