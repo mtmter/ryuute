@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   WEEKDAY_NAMES,
   eventOccursOnDate,
@@ -9,6 +10,8 @@ import {
 } from "../dateUtils";
 
 const HOUR_HEIGHT = 56;
+const MAX_TASKS_WITHOUT_SUMMARY = 3;
+const VISIBLE_TASKS_WITH_SUMMARY = 2;
 
 function formatMinutes(minutes) {
   if (minutes === 24 * 60) {
@@ -29,7 +32,24 @@ function WeekCalendar({
   onTimeClick,
 }) {
   const weekDates = getWeekDates(selectedDate);
+  const [dayTasksPopup, setDayTasksPopup] = useState(null);
   const today = new Date();
+
+  useEffect(() => {
+    if (!dayTasksPopup) {
+      return undefined;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setDayTasksPopup(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [dayTasksPopup]);
 
   return (
     <section aria-label="週間カレンダー">
@@ -72,10 +92,15 @@ function WeekCalendar({
                 .sort((firstTask, secondTask) =>
                   firstTask.due_at.localeCompare(secondTask.due_at),
                 );
+              const visibleTasks =
+                dateTasks.length > MAX_TASKS_WITHOUT_SUMMARY
+                  ? dateTasks.slice(0, VISIBLE_TASKS_WITH_SUMMARY)
+                  : dateTasks;
+              const hiddenTaskCount = dateTasks.length - visibleTasks.length;
 
               return (
                 <div className="week-due-cell" key={getDateKey(date)}>
-                  {dateTasks.map((task) => (
+                  {visibleTasks.map((task) => (
                     <div
                       className="week-task"
                       title={task.title}
@@ -96,6 +121,19 @@ function WeekCalendar({
                       {formatTime(task.due_at)} {task.title}
                     </div>
                   ))}
+
+                  {hiddenTaskCount > 0 && (
+                    <button
+                      type="button"
+                      className="month-more-events week-more-tasks"
+                      title={`他${hiddenTaskCount}件のタスクを表示`}
+                      onClick={() =>
+                        setDayTasksPopup({ date, tasks: dateTasks })
+                      }
+                    >
+                      他{hiddenTaskCount}件
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -193,6 +231,64 @@ function WeekCalendar({
           </div>
         </div>
       </div>
+
+      {dayTasksPopup && (
+        <div
+          className="month-events-popover-backdrop"
+          onClick={() => setDayTasksPopup(null)}
+        >
+          <section
+            aria-labelledby={`week-tasks-title-${getDateKey(dayTasksPopup.date)}`}
+            aria-modal="true"
+            className="month-events-popover"
+            role="dialog"
+            onClick={(clickEvent) => clickEvent.stopPropagation()}
+          >
+            <header className="month-events-popover-header">
+              <span aria-hidden="true" />
+              <div>
+                <span>{WEEKDAY_NAMES[dayTasksPopup.date.getDay()]}</span>
+                <time
+                  dateTime={getDateKey(dayTasksPopup.date)}
+                  id={`week-tasks-title-${getDateKey(dayTasksPopup.date)}`}
+                >
+                  {dayTasksPopup.date.getDate()}
+                </time>
+              </div>
+              <button
+                autoFocus
+                aria-label="タスクの一覧を閉じる"
+                className="modal-close-button"
+                type="button"
+                onClick={() => setDayTasksPopup(null)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="month-events-popover-list">
+              {dayTasksPopup.tasks.map((task) => (
+                <button
+                  type="button"
+                  className="month-events-popover-task"
+                  key={`week-popup-task-${task.id}`}
+                  title={`タスク: ${task.title}`}
+                  onClick={() => {
+                    setDayTasksPopup(null);
+                    onTaskClick(task);
+                  }}
+                >
+                  <span className="task-dot" aria-hidden="true" />
+                  <span className="month-item-time">
+                    {formatTime(task.due_at)}
+                  </span>
+                  <span>{task.title}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
