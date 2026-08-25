@@ -11,6 +11,7 @@ import PreparationReminderSettingsModal from "./components/PreparationReminderSe
 import TaskDetailsModal from "./components/TaskDetailsModal";
 import TaskList from "./components/TaskList";
 import WeekCalendar from "./components/WeekCalendar";
+import useAuth from "./auth/useAuth";
 import {
   addDays,
   addMonths,
@@ -262,7 +263,7 @@ async function saveTravelPlan(eventId, route) {
   return response.json();
 }
 
-function App() {
+function ScheduleApp({ authErrorMessage, onLogout, user }) {
   const [activeView, setActiveView] = useState("month");
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(() => {
@@ -806,15 +807,27 @@ function App() {
             <span aria-hidden="true">＋</span>
             追加
           </button>
+          <div className="auth-user-controls">
+            <span title={user.email ?? ""}>
+              {user.displayName || user.email || "ログイン中"}
+            </span>
+            <button type="button" onClick={onLogout}>
+              ログアウト
+            </button>
+          </div>
         </div>
       </header>
 
-      {(errorMessage || preparationErrorMessage) && (
+      {(authErrorMessage || errorMessage || preparationErrorMessage) && (
         <div className="error-message" role="alert">
-          <span>{errorMessage || preparationErrorMessage}</span>
-          <button type="button" onClick={handleRetry}>
-            再読み込み
-          </button>
+          <span>
+            {authErrorMessage || errorMessage || preparationErrorMessage}
+          </span>
+          {!authErrorMessage && (
+            <button type="button" onClick={handleRetry}>
+              再読み込み
+            </button>
+          )}
         </div>
       )}
 
@@ -941,6 +954,83 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  const { isAuthLoading, loginWithGoogle, logout, user } = useAuth();
+  const [authErrorMessage, setAuthErrorMessage] = useState("");
+  const [isAuthActionPending, setIsAuthActionPending] = useState(false);
+
+  async function handleLogin() {
+    setIsAuthActionPending(true);
+    setAuthErrorMessage("");
+
+    try {
+      await loginWithGoogle();
+    } catch {
+      setAuthErrorMessage("Googleログインに失敗しました。もう一度お試しください");
+    } finally {
+      setIsAuthActionPending(false);
+    }
+  }
+
+  async function handleLogout() {
+    setIsAuthActionPending(true);
+    setAuthErrorMessage("");
+
+    try {
+      await logout();
+    } catch {
+      setAuthErrorMessage("ログアウトに失敗しました。もう一度お試しください");
+    } finally {
+      setIsAuthActionPending(false);
+    }
+  }
+
+  if (isAuthLoading) {
+    return (
+      <main className="auth-screen">
+        <p className="status-message">認証状態を確認しています...</p>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card" aria-labelledby="login-title">
+          <span className="app-logo" aria-hidden="true">
+            竜
+          </span>
+          <h1 id="login-title">Ryuute</h1>
+          <p>予定とタスクをまとめて管理するスケジュール帳</p>
+          {authErrorMessage && (
+            <p className="auth-error-message" role="alert">
+              {authErrorMessage}
+            </p>
+          )}
+          <button
+            className="google-login-button"
+            type="button"
+            disabled={isAuthActionPending}
+            onClick={handleLogin}
+          >
+            {isAuthActionPending
+              ? "ログインしています..."
+              : "Googleでログイン"}
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <ScheduleApp
+      authErrorMessage={authErrorMessage}
+      onLogout={handleLogout}
+      user={user}
+    />
   );
 }
 
